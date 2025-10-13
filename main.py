@@ -58,7 +58,7 @@ def initialize_model():
         logger.info("Loading GRMR model...")
         llm = Llama.from_pretrained(
             repo_id="qingy2024/GRMR-V3-G4B-GGUF",
-            filename="GRMR-V3-G4B-Q4_K_M.gguf",
+            filename="GRMR-V3-G4B-Q8_0.gguf",
             n_ctx=4096,
             verbose=False
         )
