@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grammar Checker</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Grammar Checker</h1>
+            <p>Write your text and get instant grammar suggestions</p>
+        </header>
+
+        <div class="main-content">
+            <div class="text-editor-section">
+                <div class="editor-header">
+                    <h2>Your Text</h2>
+                    <div class="editor-actions">
+                        <button id="correctBtn" onclick="correctText()">Check Grammar</button>
+                        <button id="clearBtn" onclick="clearText()" class="secondary">Clear</button>
+                    </div>
+                </div>
+                <textarea 
+                    id="inputText" 
+                    placeholder="Start writing your text here... Example: i dont know weather to bring a umbrella today"
+                    rows="20"
+                ></textarea>
+            </div>
+
+            <div class="suggestions-section">
+                <div class="suggestions-header">
+                    <h2>Suggestions</h2>
+                    <span id="suggestionsCount" class="count-badge">0</span>
+                </div>
+                <div id="suggestionsList" class="suggestions-list">
+                    <div class="empty-state">
+                        <p>No grammar issues found yet</p>
+                        <small>Start writing and click "Check Grammar" to see suggestions</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Checking grammar...</p>
+        </div>
+    </div>
+
+    <script src="static/script.js"></script>
+</body>
+</html>
