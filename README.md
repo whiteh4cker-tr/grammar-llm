@@ -12,6 +12,13 @@ AI-powered grammar correction tool using fine-tuned language models to fix gramm
 - FastAPI backend with llama.cpp integration
 - Support for multiple grammar models
 
+## Docker Deployment
+
+### Using Docker Compose (Recommended)
+```bash
+docker-compose up -d
+```
+
 ## Installation
 
 1. Clone the repository:
