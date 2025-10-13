@@ -49,4 +49,4 @@ http://localhost:8000
 ```
 
 ## Configuration
-The application uses the GRMR-V3-G4B-Q4_K_M model by default. The model will be automatically downloaded on first run (approx. 2.5GB).
+The application uses the GRMR-V3-G4B-Q8_0 model by default. The model will be automatically downloaded on first run (approx. 4.13GB).
