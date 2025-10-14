@@ -197,10 +197,12 @@ def correct_sentence(sentence: str) -> str:
         
         response = llm.create_chat_completion(
             messages=messages,
-            temperature=0.1,  # Very low temperature for consistent results
-            top_p=0.7,
-            top_k=20,
+            temperature=0.7,
+            top_p=0.95,
+            top_k=40,
             min_p=0.01,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
             max_tokens=len(clean_sentence) + 20,  # Limit to prevent excessive output
             stop=["<|endoftext|>", "<|corrected_end|>", "\n\n", "Corrected:", "Here is"]
         )
