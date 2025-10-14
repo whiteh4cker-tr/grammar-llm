@@ -210,6 +210,11 @@ def correct_sentence(sentence: str) -> str:
         # Clean the corrected text
         corrected = clean_corrected_text(corrected, clean_sentence)
         
+        # VALIDATION: Skip correction if the only changes are quote-related
+        if is_only_quote_change(clean_sentence, corrected):
+            logger.info(f"Skipping correction - only quote changes detected: '{clean_sentence}' -> '{corrected}'")
+            return clean_sentence
+        
         # Validate the correction - if it's too different from original or contains repetition, use original
         if len(corrected) > len(clean_sentence) * 2:
             logger.warning(f"Correction rejected due to repetition or excessive length. Original: '{clean_sentence}', Corrected: '{corrected}'")
@@ -224,6 +229,28 @@ def correct_sentence(sentence: str) -> str:
     except Exception as e:
         logger.error(f"Error correcting sentence '{sentence}': {e}")
         return sentence
+
+def is_only_quote_change(original: str, corrected: str) -> bool:
+    """Check if the only differences between original and corrected are quote characters"""
+    if original == corrected:
+        return False
+
+    # Create versions with normalized quotes for comparison
+    normalized_original = original.replace('’', "'").replace('‘', "'").replace('“', '"').replace('”', '"')
+    normalized_corrected = corrected.replace('’', "'").replace('‘', "'").replace('“', '"').replace('”', '"')
+    
+    # If normalized versions are identical, then only quotes changed
+    if normalized_original == normalized_corrected:
+        return True
+    
+    # Also check if the changes are only in whitespace or very minor
+    original_stripped = original.strip()
+    corrected_stripped = corrected.strip()
+    
+    if original_stripped.replace('’', "'").replace('‘', "'") == corrected_stripped.replace('’', "'").replace('‘', "'"):
+        return True
+        
+    return False
 
 def reconstruct_text_from_sentences(original_text: str, sentence_data: List[Dict], corrected_sentences: List[str]) -> str:
     """Reconstruct text from corrected sentences while preserving original spacing.
@@ -305,7 +332,8 @@ async def correct_text(request: CorrectionRequest):
             # Only add to suggestions if there's a meaningful difference
             if (corrected.lower().strip() != sentence.lower().strip() and 
                 corrected.strip() != sentence.strip() and
-                len(corrected) <= len(sentence) * 1.5):  # Don't suggest if correction is too long
+                len(corrected) <= len(sentence) * 1.5 and # Don't suggest if correction is too long
+                not is_only_quote_change(sentence, corrected)):  # Don't suggest if only quotes changed)
                 suggestions.append(Suggestion(
                     original=sentence,
                     corrected=corrected,
