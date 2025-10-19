@@ -68,70 +68,121 @@ def initialize_model():
         raise e
 
 def split_into_sentences(text: str) -> List[Dict]:
-    """Split text into sentences and preserve trailing whitespace for reconstruction.
-
-    We ensure that:
-    - Leading whitespace is NOT included in the sentence span (so replacements don't eat spaces before a sentence)
-    - Trailing whitespace AFTER the sentence-ending punctuation IS tracked separately (so we can re-append it later)
-    This prevents concatenation like "them.I" and avoids overlaps that cause duplicated fragments.
-    """
+    """Split text into sentences using enhanced regex that handles abbreviations."""
     sentences: List[Dict] = []
-
-    # Match any run of non-ending-punct followed by a sentence-ending punct
-    # We will then extend the end to include any FOLLOWING whitespace, but not preceding
-    pattern = r"[^.!?]*[.!?]"
-
-    last_span_end = 0
-    for match in re.finditer(pattern, text):
-        raw_start, raw_end = match.start(), match.end()  # raw_end is right after the terminal punctuation
-
-        # Skip any leading whitespace so start points at the first non-space char of the sentence
-        start_no_ws = raw_start
-        while start_no_ws < raw_end and text[start_no_ws].isspace():
+    
+    if not text.strip():
+        return sentences
+    
+    # Common abbreviations that shouldn't end sentences
+    abbreviations = {
+        'etc', 'eg', 'e.g', 'ie', 'i.e', 'vs', 'viz', 'cf', 'ca', 'approx',
+        'no', 'vol', 'fig', 'p', 'pp', 'ch', 'sec', 'ex', 'al', 'et', 'seq',
+        'etc.', 'e.g.', 'i.e.', 'vs.', 'viz.', 'cf.', 'ca.', 'approx.',
+        'no.', 'vol.', 'fig.', 'p.', 'pp.', 'ch.', 'sec.', 'ex.', 'et al.', 'seq.',
+        'mr', 'mrs', 'ms', 'dr', 'prof', 'rev', 'sr', 'jr', 'st'
+    }
+    
+    # Enhanced sentence boundary detection
+    pattern = r'''
+        (?<=[.!?])            # After sentence-ending punctuation
+        (?!\w)                # Not followed by word character (handles decimals, abbreviations)
+        (?<!\d\.\d)           # Not preceded by digit.dot.digit (handles decimals)
+        (?<!\s[A-Za-z]\.)     # Not preceded by single letter dot (handles initials)
+        \s+                   # Followed by whitespace
+        (?=[A-Z"'])           # Then a capital letter or quote (start of new sentence)
+        |                     # OR
+        (?<=[.!?])\s*$        # Sentence ending at end of string
+    '''
+    
+    last_end = 0
+    potential_splits = list(re.finditer(pattern, text, re.VERBOSE | re.IGNORECASE))
+    
+    for i, match in enumerate(potential_splits):
+        split_pos = match.start()
+        sentence_text = text[last_end:split_pos + 1].strip()
+        
+        if not sentence_text:
+            last_end = split_pos + 1
+            continue
+        
+        # Check if this is likely a true sentence boundary
+        is_true_boundary = True
+        
+        # Check for common false positives
+        prev_words = sentence_text.lower().split()
+        if prev_words:
+            last_word = prev_words[-1].strip('.,!?;:"\'')
+            if last_word in abbreviations:
+                is_true_boundary = False
+            # Check for single letter abbreviations (like "U.S.")
+            elif re.match(r'^[A-Za-z]\.$', last_word):
+                is_true_boundable = False
+            # Check for decimal numbers
+            elif re.search(r'\d\.\d', sentence_text[-10:]):
+                is_true_boundary = False
+        
+        # Also check what comes after the split
+        if split_pos + 2 < len(text):
+            next_chars = text[split_pos + 1:split_pos + 3]
+            # If followed by lowercase or number, probably not sentence end
+            if next_chars and next_chars[0].islower() or next_chars[0].isdigit():
+                is_true_boundary = False
+        
+        if not is_true_boundary:
+            continue
+        
+        # Find actual content bounds
+        start_no_ws = last_end
+        while start_no_ws < split_pos + 1 and text[start_no_ws].isspace():
             start_no_ws += 1
-
-        # Extend end to include any trailing whitespace AFTER punctuation
-        span_end = raw_end
+        
+        # Find trailing whitespace
+        span_end = split_pos + 1
         while span_end < len(text) and text[span_end].isspace():
             span_end += 1
-
-        # Sentence (without leading/trailing spaces) that will be sent to the model
-        content = text[start_no_ws:raw_end].strip()
-        if not content:
-            last_span_end = span_end
-            continue
-
+        
         sentences.append({
-            'text': content,
-            # Content bounds (do not include leading ws or trailing ws)
+            'text': sentence_text,
             'start': start_no_ws,
-            'end': raw_end,
-            # Full span end including trailing whitespace to be re-appended during reconstruction
+            'end': split_pos + 1,
             'span_end': span_end,
-            # For reference, the gap before this sentence starts (used by reconstruction)
-            'gap_before_start': last_span_end
+            'gap_before_start': last_end
         })
-
-        last_span_end = span_end
-
-    # If no sentences found (or text doesn't end with punctuation), treat the whole text as one sentence
-    if not sentences and text.strip():
-        # Trim leading spaces from start, keep trailing spaces tracked
-        start_no_ws = 0
-        while start_no_ws < len(text) and text[start_no_ws].isspace():
-            start_no_ws += 1
-        raw_end = len(text)
-        span_end = len(text)
-        content = text[start_no_ws:raw_end].strip()
+        
+        last_end = span_end
+    
+    # Handle the last sentence
+    if last_end < len(text):
+        remaining = text[last_end:].strip()
+        if remaining:
+            start_no_ws = last_end
+            while start_no_ws < len(text) and text[start_no_ws].isspace():
+                start_no_ws += 1
+            
+            sentences.append({
+                'text': remaining,
+                'start': start_no_ws,
+                'end': len(text),
+                'span_end': len(text),
+                'gap_before_start': last_end
+            })
+    
+    # Fallback: if no sentences were found, treat entire text as one sentence
+    if not sentences:
+        content = text.strip()
         if content:
+            start_no_ws = 0
+            while start_no_ws < len(text) and text[start_no_ws].isspace():
+                start_no_ws += 1
             sentences.append({
                 'text': content,
                 'start': start_no_ws,
-                'end': raw_end,
-                'span_end': span_end,
+                'end': len(text),
+                'span_end': len(text),
                 'gap_before_start': 0
             })
-
+    
     return sentences
 
 def clean_corrected_text(corrected: str, original: str) -> str:
