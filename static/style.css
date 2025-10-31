@@ -11,6 +11,44 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     padding: 10px;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode styles */
+body.dark-mode {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #e2e8f0;
+}
+
+.theme-toggle {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    font-size: 2rem;
+    cursor: pointer;
+    z-index: 1001;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+    background: rgba(255, 255, 255, 0.2);
+}
+
+body.dark-mode .theme-toggle {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .container {
@@ -56,6 +94,14 @@ header p {
     flex-direction: column;
     height: 100%;
     min-height: 0; /* Important for flex children to respect height */
+    transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+body.dark-mode .text-editor-section,
+body.dark-mode .suggestions-section {
+    background: #2d3748;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 6px 25px rgba(0,0,0,0.3);
 }
 
 .editor-header {
@@ -72,6 +118,11 @@ header p {
     border: none;
     padding: 0;
     margin: 0;
+    transition: color 0.3s ease;
+}
+
+body.dark-mode .editor-header h2 {
+    color: #e2e8f0;
 }
 
 .editor-actions {
@@ -93,6 +144,11 @@ header p {
     border: none;
     padding: 0;
     margin: 0;
+    transition: color 0.3s ease;
+}
+
+body.dark-mode .suggestions-header h2 {
+    color: #e2e8f0;
 }
 
 .count-badge {
@@ -113,13 +169,25 @@ textarea {
     font-size: 16px;
     line-height: 1.5;
     resize: none;
-    transition: border-color 0.3s ease;
+    transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
     font-family: inherit;
     min-height: 0; /* Important for flex item */
+    background: white;
+    color: #2d3748;
 }
 
 textarea:focus {
     outline: none;
+    border-color: #667eea;
+}
+
+body.dark-mode textarea {
+    background: #1a202c;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+body.dark-mode textarea:focus {
     border-color: #667eea;
 }
 
@@ -146,10 +214,20 @@ button {
 .secondary {
     background: #e2e8f0;
     color: #4a5568;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 .secondary:hover {
     background: #cbd5e0;
+}
+
+body.dark-mode .secondary {
+    background: #4a5568;
+    color: #e2e8f0;
+}
+
+body.dark-mode .secondary:hover {
+    background: #5a6578;
 }
 
 .suggestions-list {
@@ -179,11 +257,28 @@ button {
     background: #a8a8a8;
 }
 
+body.dark-mode .suggestions-list::-webkit-scrollbar-track {
+    background: #1a202c;
+}
+
+body.dark-mode .suggestions-list::-webkit-scrollbar-thumb {
+    background: #4a5568;
+}
+
+body.dark-mode .suggestions-list::-webkit-scrollbar-thumb:hover {
+    background: #5a6578;
+}
+
 .empty-state {
     text-align: center;
     color: #a0aec0;
     padding: 40px 20px;
     flex-shrink: 0;
+    transition: color 0.3s ease;
+}
+
+body.dark-mode .empty-state {
+    color: #718096;
 }
 
 .empty-state p {
@@ -210,6 +305,16 @@ button {
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
+body.dark-mode .suggestion-item {
+    background: #1a202c;
+    border: 1px solid #4a5568;
+}
+
+body.dark-mode .suggestion-item:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
 .suggestion-header {
     display: flex;
     justify-content: space-between;
@@ -221,6 +326,11 @@ button {
     font-weight: 600;
     color: #4a5568;
     font-size: 0.9rem;
+    transition: color 0.3s ease;
+}
+
+body.dark-mode .suggestion-sentence {
+    color: #e2e8f0;
 }
 
 .apply-btn {
@@ -247,6 +357,13 @@ button {
     font-size: 0.9rem;
     border-left: 3px solid #e53e3e;
     word-wrap: break-word;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+body.dark-mode .original-text {
+    color: #fc8181;
+    background: #742a2a;
+    border-left-color: #fc8181;
 }
 
 .corrected-text-suggestion {
@@ -258,6 +375,13 @@ button {
     font-size: 0.9rem;
     border-left: 3px solid #38a169;
     word-wrap: break-word;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+body.dark-mode .corrected-text-suggestion {
+    color: #68d391;
+    background: #1e4d2b;
+    border-left-color: #68d391;
 }
 
 .loading {

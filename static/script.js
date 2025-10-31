@@ -362,3 +362,73 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Theme toggle functionality
+(function() {
+    let themeToggleInitialized = false;
+    
+    function initTheme() {
+        if (themeToggleInitialized) return;
+        
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        
+        if (!themeToggle || !body) {
+            // Retry after a short delay if element not found
+            setTimeout(initTheme, 50);
+            return;
+        }
+        
+        themeToggleInitialized = true;
+        
+        // Check localStorage or default to dark mode
+        const savedTheme = localStorage.getItem('theme');
+        // Default to dark mode (null or 'dark')
+        const isDarkMode = savedTheme !== 'light';
+        
+        // Apply theme immediately
+        if (isDarkMode) {
+            body.classList.add('dark-mode');
+        } else {
+            body.classList.remove('dark-mode');
+        }
+        
+        function updateThemeToggle(theme) {
+            if (theme === 'dark') {
+                themeToggle.textContent = '🌙';
+                themeToggle.title = 'Dark Mode (Click to switch to Light Mode)';
+            } else {
+                themeToggle.textContent = '☀️';
+                themeToggle.title = 'Light Mode (Click to switch to Dark Mode)';
+            }
+        }
+        
+        // Update toggle display based on initial theme
+        updateThemeToggle(isDarkMode ? 'dark' : 'light');
+        
+        // Add click handler
+        themeToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const isDark = body.classList.contains('dark-mode');
+            if (isDark) {
+                body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light');
+                updateThemeToggle('light');
+            } else {
+                body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark');
+                updateThemeToggle('dark');
+            }
+        });
+    }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initTheme);
+    } else {
+        // DOM already ready
+        initTheme();
+    }
+})();
