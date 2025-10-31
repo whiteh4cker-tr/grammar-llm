@@ -12,7 +12,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Grammar Correction API")
+app = FastAPI(title="GrammarLLM")
 
 # CORS middleware
 app.add_middleware(
@@ -25,6 +25,8 @@ app.add_middleware(
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+# Mount chrome-extension for favicon
+app.mount("/chrome-extension", StaticFiles(directory="chrome-extension"), name="chrome-extension")
 
 class CorrectionRequest(BaseModel):
     text: str
@@ -99,7 +101,7 @@ def split_into_sentences(text: str) -> List[Dict]:
     potential_splits = list(re.finditer(pattern, text, re.VERBOSE | re.IGNORECASE))
     
     for i, match in enumerate(potential_splits):
-        split_pos = match.start()
+        split_pos = match.start()  # This is where whitespace starts (right after punctuation)
         sentence_text = text[last_end:split_pos + 1].strip()
         
         if not sentence_text:
@@ -138,15 +140,20 @@ def split_into_sentences(text: str) -> List[Dict]:
             start_no_ws += 1
         
         # Find trailing whitespace
-        span_end = split_pos + 1
+        # split_pos is where the regex matched (start of whitespace after punctuation)
+        # We need to find where the whitespace ends
+        span_end = split_pos
         while span_end < len(text) and text[span_end].isspace():
             span_end += 1
+        # If no whitespace was found at split_pos, span_end should be at least split_pos + 1
+        if span_end == split_pos:
+            span_end = split_pos + 1
         
         sentences.append({
             'text': sentence_text,
             'start': start_no_ws,
-            'end': split_pos + 1,
-            'span_end': span_end,
+            'end': split_pos,  # End of sentence (right after punctuation, before whitespace)
+            'span_end': span_end,  # End of whitespace after sentence
             'gap_before_start': last_end
         })
         
@@ -224,6 +231,19 @@ def clean_corrected_text(corrected: str, original: str) -> str:
     # Ensure the corrected text maintains proper capitalization
     if original and original[0].isupper() and corrected and corrected[0].islower():
         corrected = corrected[0].upper() + corrected[1:]
+    
+    # Remove duplicate punctuation around quotes
+    # Pattern: punctuation inside quote, closing quote, period after quote
+    # Example: "text." followed by . -> "text."
+    # This handles cases like: "We need specs.". -> "We need specs."
+    # Match: punctuation, closing quote (single or double), optional whitespace, period
+    # Apply multiple times to catch all cases
+    for _ in range(3):  # Multiple passes to handle nested or multiple cases
+        old_corrected = corrected
+        corrected = re.sub(r'([.!?])(["\'])\s*\.', r'\1\2', corrected)
+        corrected = re.sub(r'([.!?])(["\'])\s*\1', r'\1\2', corrected)
+        if corrected == old_corrected:
+            break  # No more changes needed
     
     # Ensure the sentence ends with proper punctuation if the original did
     if original and original[-1] in '.!?' and corrected and corrected[-1] not in '.!?':
@@ -311,6 +331,7 @@ def reconstruct_text_from_sentences(original_text: str, sentence_data: List[Dict
     We re-append:
     - The gap before each sentence (from the end of the previous sentence's full span)
     - The original trailing whitespace after each sentence's ending punctuation
+    - Ensures at least one space between sentences if the original had one
     """
     if len(sentence_data) != len(corrected_sentences):
         return original_text
@@ -318,7 +339,7 @@ def reconstruct_text_from_sentences(original_text: str, sentence_data: List[Dict
     result_parts: List[str] = []
     last_span_end = 0
 
-    for sent_data, corrected in zip(sentence_data, corrected_sentences):
+    for i, (sent_data, corrected) in enumerate(zip(sentence_data, corrected_sentences)):
         start = sent_data['start']
         end = sent_data['end']
         span_end = sent_data.get('span_end', end)
@@ -335,8 +356,29 @@ def reconstruct_text_from_sentences(original_text: str, sentence_data: List[Dict
         result_parts.append(corrected)
 
         # Append original trailing whitespace that followed the sentence-ending punctuation
+        # end is split_pos, which marks where the sentence ends (right after punctuation, start of whitespace)
+        # span_end marks where the whitespace after the sentence ends
         if span_end > end:
-            result_parts.append(original_text[end:span_end])
+            # Normal case: we captured the whitespace correctly
+            trailing_whitespace = original_text[end:span_end]
+            result_parts.append(trailing_whitespace)
+        elif i < len(sentence_data) - 1:
+            # span_end == end means whitespace wasn't captured, but we need to preserve it
+            # end is split_pos (start of whitespace in original), so check from there
+            if end < len(original_text):
+                whitespace_end = end
+                while whitespace_end < len(original_text) and original_text[whitespace_end].isspace():
+                    whitespace_end += 1
+                
+                if whitespace_end > end:
+                    # Found whitespace, preserve it
+                    result_parts.append(original_text[end:whitespace_end])
+                elif corrected and corrected[-1] in '.!?' and whitespace_end < len(original_text):
+                    # No whitespace found but there's more text - ensure space exists
+                    next_char = original_text[whitespace_end] if whitespace_end < len(original_text) else ''
+                    if next_char and next_char.isalpha() and next_char.isupper():
+                        # Next sentence starts with capital letter, add space
+                        result_parts.append(' ')
 
         last_span_end = span_end
 
@@ -380,6 +422,15 @@ async def correct_text(request: CorrectionRequest):
             corrected = correct_sentence(sentence)
             logger.info(f"Corrected {i+1}: '{corrected}'")
             
+            # Additional cleanup: remove duplicate punctuation around quotes in corrected sentence
+            # This ensures we catch it before reconstruction
+            for _ in range(3):
+                old_corrected = corrected
+                corrected = re.sub(r'([.!?])(["\'])\s*\.', r'\1\2', corrected)
+                corrected = re.sub(r'([.!?])(["\'])\s*\1', r'\1\2', corrected)
+                if corrected == old_corrected:
+                    break
+            
             corrected_sentences.append(corrected)
             
             # Only add to suggestions if there's a meaningful difference
@@ -387,9 +438,18 @@ async def correct_text(request: CorrectionRequest):
                 corrected.strip() != sentence.strip() and
                 len(corrected) <= len(sentence) * 1.5 and # Don't suggest if correction is too long
                 not is_only_quote_change(sentence, corrected)):  # Don't suggest if only quotes changed)
+                # Ensure the corrected suggestion doesn't have duplicate punctuation around quotes
+                clean_corrected = corrected
+                for _ in range(3):
+                    old_clean = clean_corrected
+                    clean_corrected = re.sub(r'([.!?])(["\'])\s*\.', r'\1\2', clean_corrected)
+                    clean_corrected = re.sub(r'([.!?])(["\'])\s*\1', r'\1\2', clean_corrected)
+                    if clean_corrected == old_clean:
+                        break
+                
                 suggestions.append(Suggestion(
                     original=sentence,
-                    corrected=corrected,
+                    corrected=clean_corrected,
                     sentence=f"Sentence {i+1}",
                     start_index=sent_data['start'],
                     end_index=sent_data['end']
@@ -397,6 +457,15 @@ async def correct_text(request: CorrectionRequest):
         
         # Reconstruct the corrected text while preserving original structure
         corrected_text = reconstruct_text_from_sentences(text, sentence_data, corrected_sentences)
+        
+        # Final cleanup: remove duplicate punctuation around quotes in the full text
+        # This catches any cases that might have been introduced during reconstruction
+        for _ in range(3):  # Multiple passes to handle all cases
+            old_text = corrected_text
+            corrected_text = re.sub(r'([.!?])(["\'])\s*\.', r'\1\2', corrected_text)
+            corrected_text = re.sub(r'([.!?])(["\'])\s*\1', r'\1\2', corrected_text)
+            if corrected_text == old_text:
+                break  # No more changes needed
         
         logger.info(f"Original: '{text}'")
         logger.info(f"Corrected: '{corrected_text}'")
@@ -514,4 +583,13 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+    
+    # Print localhost URL before starting server
+    print("\n" + "="*60)
+    print("GrammarLLM")
+    print("="*60)
+    print(f"Server starting on http://localhost:8000")
+    print(f"(Also accessible on http://127.0.0.1:8000)")
+    print("="*60 + "\n")
+    
     uvicorn.run(app, host="0.0.0.0", port=8000)
