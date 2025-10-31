@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GrammarLLM</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GrammarLLM</h1>
+            <p>Check grammar for selected text</p>
+        </header>
+
+        <div class="main-content">
+            <div class="text-section">
+                <div class="section-header">
+                    <h2>Selected Text</h2>
+                    <button id="refreshBtn" class="secondary-btn" title="Refresh selected text">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.48L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="selectedTextContainer" class="text-container">
+                    <p id="selectedText" class="selected-text">No text selected</p>
+                    <small id="hintText" class="hint-text">Highlight text on the page and refresh</small>
+                </div>
+                <div class="action-buttons">
+                    <button id="checkGrammarBtn" class="primary-btn" disabled>
+                        <span>Check Grammar</span>
+                    </button>
+                    <button id="copyCorrectedBtn" class="secondary-btn" disabled>
+                        <span>Copy Corrected</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="suggestions-section">
+                <div class="section-header">
+                    <h2>Suggestions</h2>
+                    <span id="suggestionsCount" class="count-badge">0</span>
+                </div>
+                <div id="suggestionsList" class="suggestions-list">
+                    <div class="empty-state">
+                        <p>No suggestions yet</p>
+                        <small>Select text and click "Check Grammar"</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Checking grammar...</p>
+        </div>
+
+        <div id="error" class="error-message" style="display: none;"></div>
+        
+        <div class="settings">
+            <label for="apiUrl">API URL:</label>
+            <input type="text" id="apiUrl" placeholder="http://localhost:8000" />
+            <button id="saveSettingsBtn" class="small-btn">Save</button>
+        </div>
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>
+

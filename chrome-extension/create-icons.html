@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Extension Icons</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .instructions {
+            background: #f0f0f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            margin: 10px;
+            display: block;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .canvas-container {
+            display: inline-block;
+            margin: 10px;
+            text-align: center;
+        }
+        .canvas-container label {
+            display: block;
+            margin-top: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Grammar Checker Extension - Icon Generator</h1>
+    
+    <div class="instructions">
+        <h2>Instructions</h2>
+        <ol>
+            <li>Click the buttons below to generate placeholder icons</li>
+            <li>Right-click each canvas and select "Save image as..."</li>
+            <li>Save as <code>icon16.png</code>, <code>icon48.png</code>, and <code>icon128.png</code></li>
+            <li>Place all three icon files in the <code>chrome-extension</code> folder</li>
+        </ol>
+        <p><strong>Note:</strong> These are placeholder icons. For production, you should create proper icons from your logo.</p>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="icon16" width="16" height="16"></canvas>
+        <label>16x16</label>
+        <button onclick="downloadIcon('icon16', 'icon16.png')">Download</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="icon48" width="48" height="48"></canvas>
+        <label>48x48</label>
+        <button onclick="downloadIcon('icon48', 'icon48.png')">Download</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="icon128" width="128" height="128"></canvas>
+        <label>128x128</label>
+        <button onclick="downloadIcon('icon128', 'icon128.png')">Download</button>
+    </div>
+
+    <script>
+        function drawIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Gradient background
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#667eea');
+            gradient.addColorStop(1, '#764ba2');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Draw a simple "G" letter (for Grammar)
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size * 0.6}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('G', size / 2, size / 2);
+        }
+
+        function downloadIcon(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // Draw all icons on load
+        window.onload = function() {
+            drawIcon('icon16', 16);
+            drawIcon('icon48', 48);
+            drawIcon('icon128', 128);
+        };
+    </script>
+</body>
+</html>
+
