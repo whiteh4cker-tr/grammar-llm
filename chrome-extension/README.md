@@ -14,21 +14,7 @@ A Chrome extension that integrates with the GrammarLLM application to check gram
 
 ## Setup Instructions
 
-### 1. Prepare Icons
-
-The extension requires three icon files:
-- `icon16.png` (16x16 pixels)
-- `icon48.png` (48x48 pixels)
-- `icon128.png` (128x128 pixels)
-
-You can:
-- Use the existing logo from `../static/img/grammar-llm.png` and resize it
-- Create your own icons
-- Use a placeholder icon generator
-
-**Quick solution:** You can use any image editing tool or online icon generator to create these icons from the existing logo.
-
-### 2. Start the Grammar-LLM API
+### 1. Start the GrammarLLM API
 
 Make sure your grammar checking API is running:
 
@@ -44,7 +30,7 @@ docker-compose up -d
 
 The extension is configured to connect to `http://localhost:8000` by default.
 
-### 3. Load the Extension in Chrome
+### 2. Load the Extension in Chrome
 
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable **Developer mode** (toggle in the top right)
@@ -52,7 +38,7 @@ The extension is configured to connect to `http://localhost:8000` by default.
 4. Select the `chrome-extension` folder
 5. The extension should now appear in your extensions list
 
-### 4. Configure API URL (Optional)
+### 3. Configure API URL (Optional)
 
 If your API is running on a different URL or port:
 
@@ -69,7 +55,6 @@ If your API is running on a different URL or port:
 4. The selected text will appear in the popup
 5. Click **"Check Grammar"** to analyze the text
 6. Review suggestions and:
-   - Click **"Apply"** on individual suggestions to update the text in the popup
    - Click **"Copy Corrected"** to copy the fully corrected text to clipboard
 7. Use the **refresh button** to get newly selected text from the page
 
