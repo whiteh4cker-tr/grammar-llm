@@ -1,4 +1,4 @@
-# Grammar Checker Chrome Extension
+# GrammarLLM Chrome Extension
 
 A Chrome extension that integrates with the GrammarLLM application to check grammar for selected text on any webpage.
 
