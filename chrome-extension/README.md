@@ -8,7 +8,6 @@ A Chrome extension that integrates with the GrammarLLM application to check gram
 - **Click the extension icon** to open the popup
 - **Check grammar** with AI-powered corrections
 - **View suggestions** with original and corrected text
-- **Apply suggestions** individually
 - **Copy corrected text** to clipboard
 - **Customizable API URL** for your local server
 
