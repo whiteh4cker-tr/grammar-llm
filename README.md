@@ -9,7 +9,6 @@ AI-powered grammar correction tool using fine-tuned language models to fix gramm
 
 ## Features
 
-- AI-powered grammar checker
 - Real-time grammar and spelling correction
 - AI-powered suggestions using fine-tuned LLMs
 - Individual suggestion acceptance
