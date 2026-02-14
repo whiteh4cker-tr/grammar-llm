@@ -7,6 +7,7 @@ from llama_cpp import Llama
 import re
 from typing import List, Dict
 import logging
+import difflib
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +38,8 @@ class Suggestion(BaseModel):
     sentence: str
     start_index: int
     end_index: int
+    original_highlighted: str = ""  # New field for highlighted original
+    corrected_highlighted: str = ""  # New field for highlighted corrected
 
 class CorrectionResponse(BaseModel):
     suggestions: List[Suggestion]
@@ -325,6 +328,85 @@ def is_only_quote_change(original: str, corrected: str) -> bool:
         
     return False
 
+def highlight_word_differences(original: str, corrected: str) -> tuple:
+    """
+    Compare original and corrected sentences word-by-word and return HTML-highlighted versions.
+    Changed words in the original are wrapped in <span style="text-decoration: underline; color: red;">
+    Changed words in the corrected are wrapped in <span style="color: green; font-weight: bold;">
+    
+    Returns: (highlighted_original, highlighted_corrected)
+    """
+    # Split into words while preserving punctuation
+    def tokenize(text: str) -> List[str]:
+        """Split text into words and punctuation tokens"""
+        # Pattern that splits on spaces but keeps punctuation separate
+        tokens = []
+        current = ""
+        for char in text:
+            if char.isspace():
+                if current:
+                    tokens.append(current)
+                    current = ""
+                tokens.append(char)
+            elif char in '.,!?;:\'"()[]{}':
+                if current:
+                    tokens.append(current)
+                    current = ""
+                tokens.append(char)
+            else:
+                current += char
+        if current:
+            tokens.append(current)
+        return tokens
+    
+    original_tokens = tokenize(original)
+    corrected_tokens = tokenize(corrected)
+    
+    # Use difflib to find differences
+    matcher = difflib.SequenceMatcher(None, original_tokens, corrected_tokens)
+    
+    highlighted_original = []
+    highlighted_corrected = []
+    
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            # No changes, add tokens as-is
+            highlighted_original.extend(original_tokens[i1:i2])
+            highlighted_corrected.extend(corrected_tokens[j1:j2])
+        elif tag == 'replace':
+            # Words were changed
+            original_words = original_tokens[i1:i2]
+            corrected_words = corrected_tokens[j1:j2]
+            
+            # Highlight non-whitespace tokens
+            for token in original_words:
+                if token.strip():
+                    highlighted_original.append(f'<span class="error-word">{token}</span>')
+                else:
+                    highlighted_original.append(token)
+            
+            for token in corrected_words:
+                if token.strip():
+                    highlighted_corrected.append(f'<span class="corrected-word">{token}</span>')
+                else:
+                    highlighted_corrected.append(token)
+        elif tag == 'delete':
+            # Words were deleted from original
+            for token in original_tokens[i1:i2]:
+                if token.strip():
+                    highlighted_original.append(f'<span class="error-word">{token}</span>')
+                else:
+                    highlighted_original.append(token)
+        elif tag == 'insert':
+            # Words were added in corrected
+            for token in corrected_tokens[j1:j2]:
+                if token.strip():
+                    highlighted_corrected.append(f'<span class="corrected-word">{token}</span>')
+                else:
+                    highlighted_corrected.append(token)
+    
+    return ''.join(highlighted_original), ''.join(highlighted_corrected)
+
 def reconstruct_text_from_sentences(original_text: str, sentence_data: List[Dict], corrected_sentences: List[str]) -> str:
     """Reconstruct text from corrected sentences while preserving original spacing.
 
@@ -447,12 +529,17 @@ async def correct_text(request: CorrectionRequest):
                     if clean_corrected == old_clean:
                         break
                 
+                # Generate highlighted versions
+                highlighted_original, highlighted_corrected = highlight_word_differences(sentence, clean_corrected)
+                
                 suggestions.append(Suggestion(
                     original=sentence,
                     corrected=clean_corrected,
                     sentence=f"Sentence {i+1}",
                     start_index=sent_data['start'],
-                    end_index=sent_data['end']
+                    end_index=sent_data['end'],
+                    original_highlighted=highlighted_original,
+                    corrected_highlighted=highlighted_corrected
                 ))
         
         # Reconstruct the corrected text while preserving original structure

@@ -384,6 +384,31 @@ body.dark-mode .corrected-text-suggestion {
     border-left-color: #68d391;
 }
 
+/* Ensure red underlined text in original is visible - WCAG 2.0 compliant */
+.original-text .error-word {
+    font-weight: bold;
+    color: #c53030;
+    text-decoration: underline;
+    text-decoration-color: #c53030;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 2px;
+}
+
+body.dark-mode .original-text .error-word {
+    color: #fc8181;
+    text-decoration-color: #fc8181;
+}
+
+/* Ensure green bold text in corrected is visible - WCAG 2.0 compliant */
+.corrected-text-suggestion .corrected-word {
+    font-weight: bold;
+    color: #1e6e3e;
+}
+
+body.dark-mode .corrected-text-suggestion .corrected-word {
+    color: #86efac;
+}
+
 .loading {
     position: fixed;
     top: 0;

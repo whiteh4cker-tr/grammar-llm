@@ -65,6 +65,11 @@ function displaySuggestions(suggestions) {
         if (unappliedSuggestions.length > 0) {
             suggestionsDiv.innerHTML = unappliedSuggestions.map((suggestion, originalIndex) => {
                 const globalIndex = suggestions.indexOf(suggestion);
+                
+                // Use highlighted versions if available, otherwise fall back to escaped text
+                const originalDisplay = suggestion.original_highlighted || escapeHtml(suggestion.original);
+                const correctedDisplay = suggestion.corrected_highlighted || escapeHtml(suggestion.corrected);
+                
                 return `
                     <div class="suggestion-item" data-index="${globalIndex}" data-start="${suggestion.start_index}" data-end="${suggestion.end_index}">
                         <div class="suggestion-header">
@@ -72,10 +77,10 @@ function displaySuggestions(suggestions) {
                             <button class="apply-btn" onclick="applySingleSuggestion(${globalIndex})">Apply</button>
                         </div>
                         <div class="original-text">
-                            <strong>Original:</strong> ${escapeHtml(suggestion.original)}
+                            <strong>Original:</strong> ${originalDisplay}
                         </div>
                         <div class="corrected-text-suggestion">
-                            <strong>Suggested:</strong> ${escapeHtml(suggestion.corrected)}
+                            <strong>Suggested:</strong> ${correctedDisplay}
                         </div>
                     </div>
                 `;
