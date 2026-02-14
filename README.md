@@ -1,5 +1,9 @@
-# grammar-llm
+# GrammarLLM
 AI-powered grammar correction tool using fine-tuned language models to fix grammatical errors in text.
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-darkred?logo=buy-me-a-coffee)](https://buymeacoffee.com/icecubetr)
+![GitHub License](https://img.shields.io/github/license/whiteh4cker-tr/grammar-llm?style=flat)
+![GitHub Repo stars](https://img.shields.io/github/stars/whiteh4cker-tr/grammar-llm?style=flat)
 
 ![grammar-llm](static/img/grammar-llm.png)
 
@@ -11,6 +15,7 @@ AI-powered grammar correction tool using fine-tuned language models to fix gramm
 - Clean, responsive web interface
 - FastAPI backend with llama.cpp integration
 - Support for multiple grammar models
+- Doesn't require a GPU
 
 ## Docker Deployment
 
