@@ -472,6 +472,12 @@ def reconstruct_text_from_sentences(original_text: str, sentence_data: List[Dict
 
 @app.on_event("startup")
 async def startup_event():
+    print("\n" + "="*60)
+    print("GrammarLLM")
+    print("="*60)
+    print(f"Server starting on http://localhost:8000")
+    print(f"(Also accessible on http://127.0.0.1:8000)")
+    print("="*60 + "\n")
     initialize_model()
 
 @app.get("/")
@@ -670,13 +676,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    
-    # Print localhost URL before starting server
-    print("\n" + "="*60)
-    print("GrammarLLM")
-    print("="*60)
-    print(f"Server starting on http://localhost:8000")
-    print(f"(Also accessible on http://127.0.0.1:8000)")
-    print("="*60 + "\n")
-    
     uvicorn.run(app, host="0.0.0.0", port=8000)
