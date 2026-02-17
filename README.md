@@ -1,5 +1,5 @@
 # GrammarLLM
-GrammarLLM is an open-source framework for automated grammar correction, writing quality assessment, and structured feedback generation using fine-tuned large language models. It performs sentence-level error detection and correction, computes quantitative writing quality scores based on detected error spans, and generates detailed, downloadable PDF reports with highlighted differences between original and corrected text. Designed for reproducible experimentation and evaluation, GrammarLLM provides a REST API and web interface for integration into research workflows and supports CPU-based execution without requiring GPU resources.
+GrammarLLM is an open-source framework for automated grammar correction, writing quality assessment, and structured feedback generation using fine-tuned large language models. It performs sentence-level error detection and correction, computes quantitative writing quality scores based on detected error spans, and generates detailed, downloadable [PDF reports](https://github.com/whiteh4cker-tr/grammar-llm/blob/main/static/pdf/example-writing-quality-report.pdf) with highlighted differences between original and corrected text. Designed for reproducible experimentation and evaluation, GrammarLLM provides a REST API and web interface for integration into research workflows and supports CPU-based execution without requiring GPU resources.
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-darkred?logo=buy-me-a-coffee)](https://buymeacoffee.com/icecubetr)
 ![GitHub License](https://img.shields.io/github/license/whiteh4cker-tr/grammar-llm?style=flat)
@@ -12,7 +12,7 @@ GrammarLLM is an open-source framework for automated grammar correction, writing
 - Real-time grammar and spelling correction
 - AI-powered suggestions using fine-tuned LLMs
 - Writing quality scoring (0–100) based on error-to-word ratio
-- PDF report generation with visually highlighted original and corrected sentences
+- [PDF report](https://github.com/whiteh4cker-tr/grammar-llm/blob/main/static/pdf/example-writing-quality-report.pdf) generation with visually highlighted original and corrected sentences
 - Individual suggestion acceptance
 - Clean, responsive web interface
 - FastAPI backend with llama.cpp integration
