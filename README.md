@@ -1,5 +1,5 @@
 # GrammarLLM
-AI-powered grammar correction tool using fine-tuned language models to fix grammatical errors in text.
+GrammarLLM is an open-source framework for automated grammar correction, writing quality assessment, and structured feedback generation using fine-tuned large language models. It performs sentence-level error detection and correction, computes quantitative writing quality scores based on detected error spans, and generates detailed, downloadable PDF reports with highlighted differences between original and corrected text. Designed for reproducible experimentation and evaluation, GrammarLLM provides a REST API and web interface for integration into research workflows and supports CPU-based execution without requiring GPU resources.
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-darkred?logo=buy-me-a-coffee)](https://buymeacoffee.com/icecubetr)
 ![GitHub License](https://img.shields.io/github/license/whiteh4cker-tr/grammar-llm?style=flat)
@@ -11,11 +11,14 @@ AI-powered grammar correction tool using fine-tuned language models to fix gramm
 
 - Real-time grammar and spelling correction
 - AI-powered suggestions using fine-tuned LLMs
+- Writing quality scoring (0–100) based on error-to-word ratio
+- PDF report generation with visually highlighted original and corrected sentences
 - Individual suggestion acceptance
 - Clean, responsive web interface
 - FastAPI backend with llama.cpp integration
 - Support for multiple grammar models
 - Doesn't require a GPU
+- REST API for programmatic access
 
 ## Docker Deployment
 
@@ -56,7 +59,14 @@ http://localhost:8000
 ## Example Usage
 
 ### Web Interface
-Simply paste or type your text in the editor and click "Check Grammar". The application will analyze your text and display suggestions.
+Simply paste or type your text in the editor and click "Check Grammar". The application will:
+1. Analyze your text and display suggestions with highlighted differences
+2. Calculate and display a writing quality score (0–100) based on the ratio of errors to total words
+3. Provide a "Download Report" button to generate a PDF report containing:
+   - Writing quality score
+   - All suggestions with original and corrected sentences
+   - Visual highlighting of error words (red) and corrections (green)
+   - WCAG 2.0 AA compliant color contrast for accessibility
 
 ### API Usage
 The application exposes a REST API for programmatic access:
