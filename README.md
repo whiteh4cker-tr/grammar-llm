@@ -68,6 +68,52 @@ curl -X POST "http://localhost:8000/correct" \
   -d '{"text": "your text here"}'
 ```
 
+### Using Python
+```python
+import requests, json
+
+URL = "http://localhost:8000/correct"
+payload = {"text": "She dont like the apples. this is a bad sentence"}
+
+resp = requests.post(URL, json=payload, timeout=30)
+resp.raise_for_status()
+print(resp.status_code)
+print(json.dumps(resp.json(), indent=2, ensure_ascii=False))
+
+```
+
+### 📦 Using Postman
+- Method: POST
+- URL: `http://localhost:8000/correct`
+- Headers: `Content-Type: application/json`
+- Body (raw → JSON): `"text": "She dont like the apples. this is a bad sentence" }`
+
+#### Output (when corrections are suggested)
+```json
+{
+    "suggestions": [
+        {
+            "original": "She dont like the apples. this is a bad sentence",
+            "corrected": "She doesn't like the apples. This is a bad sentence",
+            "sentence": "Sentence 1",
+            "start_index": 0,
+            "end_index": 48,
+            "original_highlighted": "She <span class=\"error-word\">dont</span> like the apples. <span class=\"error-word\">this</span> is a bad sentence",
+            "corrected_highlighted": "She <span class=\"corrected-word\">doesn</span><span class=\"corrected-word\">'</span><span class=\"corrected-word\">t</span> like the apples. <span class=\"corrected-word\">This</span> is a bad sentence"
+        }
+    ],
+    "corrected_text": "She doesn't like the apples. This is a bad sentence"
+}
+```
+
+#### Output (when input is already correct)
+```json
+{
+    "suggestions": [],
+    "corrected_text": "This is a good sentence. This is another good sentence."
+}
+```
+
 ## Configuration
 The application uses the GRMR-V3-G4B-Q8_0 model by default. The model will be automatically downloaded on first run (approx. 4.13GB).
 
@@ -79,8 +125,8 @@ The application uses the GRMR-V3-G4B-Q8_0 model by default. The model will be au
 - **Endpoint**: POST `/correct`
 - **Request Body**: `{"text": "your text here"}`
 - **Response**: Returns a `CorrectionResponse` object containing:
-  - `suggestions`: List of grammar corrections with original text, corrected text, and span information
-  - `corrected_text`: The fully corrected version of the input text
+  - `suggestions` (List[Suggestion]): a list of per-sentence suggestion objects. Each suggestion includes `original`, `corrected`, `sentence`, `start_index`, `end_index`, and HTML-highlighted fields (`original_highlighted`, `corrected_highlighted`). **Only sentences with a meaningful correction are included; `suggestions` may be empty.**
+  - `corrected_text`: The fully corrected version of the input text (this field is always returned)
 
 **Apply Suggestion Endpoint**
 - **Endpoint**: POST `/apply-suggestion`
