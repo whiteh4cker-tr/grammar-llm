@@ -130,6 +130,62 @@ body.dark-mode .editor-header h2 {
     gap: 10px;
 }
 
+/* Writing Quality header */
+.writing-quality-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+}
+
+.writing-quality-header h2 {
+    color: #4a5568;
+    font-size: 1.3rem;
+    border: none;
+    padding: 0;
+    margin: 0;
+    transition: color 0.3s ease;
+}
+
+body.dark-mode .writing-quality-header h2 {
+    color: #e2e8f0;
+}
+
+.writing-quality-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.quality-score {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #38a169;
+}
+
+body.dark-mode .quality-score {
+    color: #68d391;
+}
+
+.download-report-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    line-height: 1;
+}
+
+.download-report-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
 .suggestions-header {
     display: flex;
     justify-content: space-between;

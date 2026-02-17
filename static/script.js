@@ -46,6 +46,9 @@ async function correctText() {
         // Display suggestions
         displaySuggestions(data.suggestions);
 
+        // Calculate and display writing quality score
+        updateWritingQuality(inputText, data.suggestions);
+
     } catch (error) {
         console.error('Error:', error);
         suggestionsDiv.innerHTML = '<div class="empty-state" style="color: #e53e3e;"><p>Error checking grammar</p><small>Please try again</small></div>';
@@ -236,6 +239,268 @@ function clearText() {
     currentCorrections = { suggestions: [], correctedText: '' };
     appliedSuggestions.clear();
     originalTextForCorrection = '';
+    // Hide writing quality header
+    document.getElementById('writingQualityHeader').style.display = 'none';
+}
+
+function updateWritingQuality(text, suggestions) {
+    const header = document.getElementById('writingQualityHeader');
+    const scoreEl = document.getElementById('writingQualityScore');
+
+    // Count total words
+    const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+    const totalWords = words.length;
+
+    // Count errors by counting error-word spans across all suggestions
+    let errorCount = 0;
+    if (suggestions && suggestions.length > 0) {
+        suggestions.forEach(s => {
+            const highlighted = s.original_highlighted || '';
+            const matches = highlighted.match(/<span class="error-word">/g);
+            if (matches) {
+                errorCount += matches.length;
+            }
+        });
+    }
+
+    // Calculate score: 0–100
+    let score;
+    if (totalWords === 0) {
+        score = 100;
+    } else {
+        score = Math.max(0, Math.round(100 * (1 - errorCount / totalWords)));
+    }
+
+    scoreEl.textContent = score;
+    header.style.display = 'flex';
+}
+
+function downloadReport() {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert('PDF library failed to load. Please check your internet connection and refresh the page.');
+        return;
+    }
+    try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const suggestions = currentCorrections.suggestions || [];
+    const scoreEl = document.getElementById('writingQualityScore');
+    const score = scoreEl ? scoreEl.textContent : '—';
+
+    const pageW = doc.internal.pageSize.getWidth();
+    const marginL = 20;
+    const marginR = 20;
+    const usableW = pageW - marginL - marginR;
+    let y = 20;
+
+    // WCAG 2.0 AA compliant colors on white background (contrast >= 4.5:1)
+    const COLOR_TITLE    = [41, 41, 41];       // #292929 – near-black
+    const COLOR_BODY     = [51, 51, 51];       // #333333
+    const COLOR_ERROR    = [163, 28, 28];      // #A31C1C – dark red (7.5:1)
+    const COLOR_CORRECT  = [21, 111, 56];      // #156F38 – dark green (5.2:1)
+    const COLOR_LABEL    = [80, 80, 80];       // #505050
+    const COLOR_LINE     = [180, 180, 180];    // #B4B4B4
+    const COLOR_SCORE    = [21, 111, 56];      // same dark green for score
+    const COLOR_BG_ORIG  = [254, 226, 226];    // #FEE2E2 – light red bg
+    const COLOR_BG_CORR  = [220, 252, 231];    // #DCFCE7 – light green bg
+
+    function checkPage(needed) {
+        if (y + needed > doc.internal.pageSize.getHeight() - 15) {
+            doc.addPage();
+            y = 20;
+        }
+    }
+
+    // ── Title ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(...COLOR_TITLE);
+    doc.text('Writing Quality Report', pageW / 2, y, { align: 'center' });
+    y += 10;
+
+    // ── Accent line ──
+    doc.setDrawColor(102, 126, 234); // #667eea brand purple
+    doc.setLineWidth(0.8);
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 10;
+
+    // ── Score ──
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(14);
+    doc.setTextColor(...COLOR_BODY);
+    doc.text('Writing Quality Score:', marginL, y);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(...COLOR_SCORE);
+    const scoreText = score + ' / 100';
+    doc.text(scoreText, marginL + 58, y);
+    y += 12;
+
+    // ── Divider ──
+    doc.setDrawColor(...COLOR_LINE);
+    doc.setLineWidth(0.3);
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 8;
+
+    // ── Suggestions heading ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(...COLOR_TITLE);
+    doc.text('Suggestions', marginL, y);
+    y += 8;
+
+    if (suggestions.length === 0) {
+        checkPage(10);
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(12);
+        doc.setTextColor(...COLOR_BODY);
+        doc.text('No grammar issues found. Great writing!', marginL, y);
+        y += 10;
+    } else {
+        suggestions.forEach((s, i) => {
+            checkPage(40);
+
+            // Sentence label
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(...COLOR_TITLE);
+            doc.text((i + 1) + '. ' + s.sentence, marginL, y);
+            y += 7;
+
+            // ── Original row ──
+            const origTokens = parseHighlightedTokens(s.original_highlighted || s.original, 'error-word');
+            y = renderHighlightedRow(doc, 'Original:', origTokens, marginL, y, usableW, COLOR_LABEL, COLOR_BODY, COLOR_ERROR, COLOR_BG_ORIG);
+            y += 2;
+
+            // ── Corrected row ──
+            const corrTokens = parseHighlightedTokens(s.corrected_highlighted || s.corrected, 'corrected-word');
+            y = renderHighlightedRow(doc, 'Suggested:', corrTokens, marginL, y, usableW, COLOR_LABEL, COLOR_BODY, COLOR_CORRECT, COLOR_BG_CORR);
+            y += 6;
+
+            // Light separator between suggestions
+            if (i < suggestions.length - 1) {
+                doc.setDrawColor(...COLOR_LINE);
+                doc.setLineWidth(0.15);
+                doc.line(marginL + 5, y, pageW - marginR - 5, y);
+                y += 6;
+            }
+        });
+    }
+
+    // ── Footer ──
+    checkPage(16);
+    y += 4;
+    doc.setDrawColor(102, 126, 234);
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y, pageW - marginR, y);
+    y += 6;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(...COLOR_LABEL);
+    doc.text('Generated by GrammarLLM', pageW / 2, y, { align: 'center' });
+
+    doc.save('writing-quality-report.pdf');
+    } catch (err) {
+        console.error('PDF generation error:', err);
+        alert('Failed to generate PDF report: ' + err.message);
+    }
+}
+
+/**
+ * Parse an HTML-highlighted string into tokens: [{text, highlighted: bool}, ...]
+ * Works with spans like <span class="error-word">word</span>
+ */
+function parseHighlightedTokens(html, spanClass) {
+    if (!html) return [{ text: '', highlighted: false }];
+    const tokens = [];
+    // Match <span class="...">...</span> or plain text between them
+    const regex = new RegExp('<span class="' + spanClass.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '">([^<]*)<\/span>', 'g');
+    let lastIndex = 0;
+    let match;
+    while ((match = regex.exec(html)) !== null) {
+        if (match.index > lastIndex) {
+            tokens.push({ text: html.substring(lastIndex, match.index), highlighted: false });
+        }
+        tokens.push({ text: match[1], highlighted: true });
+        lastIndex = regex.lastIndex;
+    }
+    if (lastIndex < html.length) {
+        tokens.push({ text: html.substring(lastIndex), highlighted: false });
+    }
+    // Strip any remaining HTML tags from plain segments
+    tokens.forEach(t => { t.text = t.text.replace(/<[^>]*>/g, ''); });
+    return tokens;
+}
+
+/**
+ * Render a labeled row of highlighted tokens into the PDF with word-wrap.
+ * Returns the new Y position.
+ */
+function renderHighlightedRow(doc, label, tokens, marginL, y, usableW, colorLabel, colorNormal, colorHighlight, bgColor) {
+    const fontSize = 11;
+    const lineH = 5.5;
+    const labelW = 24;
+    const contentX = marginL + labelW;
+    const contentW = usableW - labelW;
+
+    // Label
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(fontSize);
+    doc.setTextColor(...colorLabel);
+    doc.text(label, marginL + 2, y);
+
+    // Build pieces with measured widths for word-wrap
+    doc.setFontSize(fontSize);
+    const pieces = [];
+    tokens.forEach(tok => {
+        // Split on space boundaries to allow wrapping
+        const parts = tok.text.split(/( )/);
+        parts.forEach(p => {
+            if (p.length > 0) {
+                // Set the correct font style BEFORE measuring width
+                doc.setFont('helvetica', tok.highlighted ? 'bold' : 'normal');
+                const width = doc.getTextWidth(p);
+                pieces.push({ text: p, highlighted: tok.highlighted, width: width });
+            }
+        });
+    });
+
+    // Render pieces with word-wrap
+    let curX = contentX;
+    let lineY = y;
+    let lineStartY = y;
+    // Collect lines for background rectangles
+    let lineRanges = [{ startY: lineY, maxY: lineY }];
+
+    pieces.forEach(p => {
+        if (curX + p.width > contentX + contentW && p.text.trim() !== '') {
+            // Wrap to next line
+            lineY += lineH;
+            curX = contentX;
+            // Check for page break
+            if (lineY > doc.internal.pageSize.getHeight() - 15) {
+                doc.addPage();
+                lineY = 20;
+            }
+            lineRanges.push({ startY: lineY, maxY: lineY });
+        }
+        if (p.highlighted) {
+            // Draw background highlight rect
+            doc.setFillColor(...bgColor);
+            doc.roundedRect(curX - 0.5, lineY - 3.5, p.width + 1, lineH, 0.8, 0.8, 'F');
+            // Draw highlighted text (bold + colored)
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...colorHighlight);
+            doc.text(p.text, curX, lineY);
+            doc.setFont('helvetica', 'normal');
+        } else {
+            doc.setTextColor(...colorNormal);
+            doc.text(p.text, curX, lineY);
+        }
+        curX += p.width;
+    });
+
+    return lineY + lineH;
 }
 
 function escapeHtml(unsafe) {

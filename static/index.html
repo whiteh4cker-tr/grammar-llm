@@ -34,6 +34,13 @@
             </div>
 
             <div class="suggestions-section">
+                <div class="writing-quality-header" id="writingQualityHeader" style="display: none;">
+                    <h2>Writing Quality</h2>
+                    <div class="writing-quality-right">
+                        <span id="writingQualityScore" class="quality-score">100</span>
+                        <button id="downloadReportBtn" class="download-report-btn" onclick="downloadReport()" title="Download Writing Quality Report">Download Report</button>
+                    </div>
+                </div>
                 <div class="suggestions-header">
                     <h2>Suggestions</h2>
                     <span id="suggestionsCount" class="count-badge">0</span>
@@ -53,6 +60,7 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="static/script.js"></script>
 </body>
 </html>
