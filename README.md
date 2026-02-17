@@ -79,7 +79,6 @@ resp = requests.post(URL, json=payload, timeout=30)
 resp.raise_for_status()
 print(resp.status_code)
 print(json.dumps(resp.json(), indent=2, ensure_ascii=False))
-
 ```
 
 ### 📦 Using Postman
