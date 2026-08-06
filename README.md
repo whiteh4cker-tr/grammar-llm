@@ -4,6 +4,12 @@ A local-first grammar correction and writing quality assessment desktop applicat
 
 This is the **`electron` branch** — a full migration of the original [GrammarLLM](https://github.com/whiteh4cker-tr/grammar-llm) (Python FastAPI + vanilla JavaScript web app) into a native desktop app. See [Differences from the python branch](#differences-from-the-python-branch) below.
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-darkred?logo=buy-me-a-coffee)](https://buymeacoffee.com/icecubetr)
+![GitHub License](https://img.shields.io/github/license/whiteh4cker-tr/grammar-llm?style=flat)
+![GitHub Repo stars](https://img.shields.io/github/stars/whiteh4cker-tr/grammar-llm?style=flat)
+
+![grammarllm](img/grammarllm.png)
+
 ---
 
 ## Features
