@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cleanCorrectedText, isOnlyQuoteChange } from './clean';
+import { cleanCorrectedText, isOnlyQuoteChange, fixMojibakeQuotes } from './clean';
 
 describe('cleanCorrectedText', () => {
   it('removes template tags', () => {
@@ -46,5 +46,27 @@ describe('isOnlyQuoteChange', () => {
 
   it('returns false for identical strings', () => {
     expect(isOnlyQuoteChange('same', 'same')).toBe(false);
+  });
+});
+
+describe('fixMojibakeQuotes', () => {
+  it('fixes CP1252-style mojibake double quotes', () => {
+    expect(fixMojibakeQuotes('by \u00e2\u20ac\u0153empowering\u00e2\u20ac\u009d end-users')).toBe('by \u201Cempowering\u201D end-users');
+  });
+
+  it('fixes CP1252-style mojibake single quotes', () => {
+    expect(fixMojibakeQuotes('it\u00e2\u20ac\u2122s here')).toBe('it\u2019s here');
+  });
+
+  it('fixes Latin-1 style mojibake with raw control bytes', () => {
+    expect(fixMojibakeQuotes('\u00e2\u0080\u009cempowering\u00e2\u0080\u009d')).toBe('\u201Cempowering\u201D');
+  });
+
+  it('fixes ellipsis mojibake', () => {
+    expect(fixMojibakeQuotes('and so on\u00e2\u20ac\u00a6')).toBe('and so on\u2026');
+  });
+
+  it('leaves normal text untouched', () => {
+    expect(fixMojibakeQuotes('The team were excited.')).toBe('The team were excited.');
   });
 });

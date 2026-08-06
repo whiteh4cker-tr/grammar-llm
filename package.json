@@ -2,7 +2,7 @@
   "name": "grammarllm-electron",
   "productName": "GrammarLLM",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.3.0",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
