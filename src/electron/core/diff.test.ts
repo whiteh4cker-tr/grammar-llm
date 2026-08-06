@@ -42,3 +42,38 @@ describe('highlightWordDifferences', () => {
     expect(correctedHighlighted).toBe('same');
   });
 });
+
+describe('quote-aware diffing', () => {
+  it('treats quote-style-only changes as equal (no spans, original chars kept)', () => {
+    const result = highlightWordDifferences('He said \u201Chi\u201D.', 'He said "hi".');
+    expect(result.originalHighlighted).toBe('He said \u201Chi\u201D.');
+    expect(result.correctedHighlighted).toBe('He said \u201Chi\u201D.');
+    expect(result.preservedCorrected).toBe('He said \u201Chi\u201D.');
+    expect(result.originalHighlighted).not.toContain('error-word');
+    expect(result.correctedHighlighted).not.toContain('corrected-word');
+  });
+
+  it('highlights only the real word change, not quote-adjacent words', () => {
+    const result = highlightWordDifferences(
+      'by \u201Cempovering\u201D users',
+      'by "empowering" users',
+    );
+    expect(result.originalHighlighted).toBe('by \u201C<span class="error-word">empovering</span>\u201D users');
+    expect(result.correctedHighlighted).toBe('by \u201C<span class="corrected-word">empowering</span>\u201D users');
+    expect(result.preservedCorrected).toBe('by \u201Cempowering\u201D users');
+  });
+
+  it('treats curly apostrophes as equal to straight ones', () => {
+    const result = highlightWordDifferences('It\u2019s fine', "It's fine");
+    expect(result.originalHighlighted).toBe('It\u2019s fine');
+    expect(result.preservedCorrected).toBe('It\u2019s fine');
+  });
+
+  it('preservedCorrected keeps corrected words with original quotes', () => {
+    const result = highlightWordDifferences(
+      'Future \u201CInteractive AI,\u201D works',
+      'Future "Interactive AI," works',
+    );
+    expect(result.preservedCorrected).toBe('Future \u201CInteractive AI,\u201D works');
+  });
+});

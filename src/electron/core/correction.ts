@@ -43,6 +43,11 @@ export async function correctText(text: string, corrector: SentenceCorrector): P
     }
 
     corrected = cleanQuotePunctuation(corrected);
+
+    // Diff once: restore the original quote style (curly vs straight) so
+    // quote changes are never applied to the user's text.
+    const diff = highlightWordDifferences(sentence, corrected);
+    corrected = diff.preservedCorrected;
     correctedSentences.push(corrected);
 
     if (
@@ -51,15 +56,14 @@ export async function correctText(text: string, corrector: SentenceCorrector): P
       corrected.length <= sentence.length * 1.5 &&
       !isOnlyQuoteChange(sentence, corrected)
     ) {
-      const highlighted = highlightWordDifferences(sentence, corrected);
       suggestions.push({
         original: sentence,
         corrected,
         sentence: `Sentence ${i + 1}`,
         start_index: sent.start,
         end_index: sent.end,
-        original_highlighted: highlighted.originalHighlighted,
-        corrected_highlighted: highlighted.correctedHighlighted,
+        original_highlighted: diff.originalHighlighted,
+        corrected_highlighted: diff.correctedHighlighted,
       });
     }
   }

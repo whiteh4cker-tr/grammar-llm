@@ -80,3 +80,19 @@ describe('correctText', () => {
     expect(result.suggestions[1].start_index).toBe(9);
   });
 });
+
+  it('preserves original quote style and highlights only real changes', async () => {
+    const text = 'He said \u201Cempovering\u201D is wrong.';
+    const corrector = fakeCorrector({ [text]: 'He said "empowering" is wrong.' });
+    const result = await correctText(text, corrector);
+
+    expect(result.suggestions).toHaveLength(1);
+    expect(result.suggestions[0].corrected).toBe('He said \u201Cempowering\u201D is wrong.');
+    expect(result.correctedText).toBe('He said \u201Cempowering\u201D is wrong.');
+
+    const originalHighlighted = result.suggestions[0].original_highlighted;
+    expect(originalHighlighted).toContain('<span class="error-word">empovering</span>');
+    expect(originalHighlighted).not.toContain('error-word">He');
+    expect(originalHighlighted).not.toContain('error-word">said');
+    expect(result.suggestions[0].corrected_highlighted).toContain('<span class="corrected-word">empowering</span>');
+  });
