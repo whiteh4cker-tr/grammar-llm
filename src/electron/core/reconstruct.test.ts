@@ -30,10 +30,10 @@ describe('reconstructTextFromSentences', () => {
     expect(reconstructTextFromSentences(original, data, ['One!'])).toBe(original);
   });
 
-  it('drops trailing whitespace after the last sentence (Python quirk)', () => {
+  it('preserves trailing whitespace after the last sentence', () => {
     const original = 'One. Two.\n\n\n';
     const data = splitIntoSentences(original);
     const result = reconstructTextFromSentences(original, data, ['One!', 'Two?']);
-    expect(result).toBe('One! Two?');
+    expect(result).toBe('One! Two?\n\n\n');
   });
 });
