@@ -25,6 +25,7 @@ export class ModelManager {
   private progressListeners = new Set<(p: DownloadProgress) => void>();
   private state: ModelStatus['state'] = 'missing';
   private modelName: string | undefined;
+  private cancelRequested = false;
 
   constructor(options: ModelManagerOptions) {
     this.modelsDir = options.modelsDir;
@@ -65,6 +66,7 @@ export class ModelManager {
     this.currentDownload = downloader;
     this.state = 'downloading';
     this.modelName = fileName;
+    this.cancelRequested = false;
 
     downloader.onProgress(({ transferredBytes, totalBytes }) => {
       const percent = totalBytes > 0 ? Math.round((transferredBytes / totalBytes) * 100) : 0;
@@ -73,20 +75,22 @@ export class ModelManager {
 
     try {
       await downloader.download();
-      this.state = 'ready';
+      if (!this.cancelRequested) this.state = 'ready';
     } catch (error) {
-      this.state = 'error';
-      throw error;
+      if (!this.cancelRequested) {
+        this.state = 'error';
+        throw error;
+      }
     } finally {
       this.currentDownload = null;
+      if (this.cancelRequested) this.state = 'missing';
     }
   }
 
   async cancelDownload(): Promise<void> {
+    this.cancelRequested = true;
     if (this.currentDownload) {
       await this.currentDownload.cancel();
-      this.currentDownload = null;
-      this.state = 'missing';
     }
   }
 

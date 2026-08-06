@@ -28,6 +28,9 @@ function makeManager(overrides: { files?: string[]; downloader?: ReturnType<type
   return { manager, downloader, factory };
 }
 
+// Let pending microtasks (download continuation) run before asserting state.
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
 describe('ModelManager', () => {
   it('reports missing when no model files exist', async () => {
     const { manager } = makeManager({ files: [] });
@@ -54,6 +57,7 @@ describe('ModelManager', () => {
       dir: '/fake/models',
       fileName: 'model.gguf',
     });
+    await tick();
     expect((await manager.getStatus()).state).toBe('downloading');
 
     downloader.emit(100, 200);
@@ -62,12 +66,15 @@ describe('ModelManager', () => {
     expect((await manager.getStatus()).state).toBe('ready');
   });
 
-  it('forwards cancel to the downloader', async () => {
+  it('forwards cancel to the downloader and stays missing', async () => {
     const downloader = fakeDownloader();
     const { manager } = makeManager({ downloader });
-    await manager.download('https://example.com/model.gguf', 'model.gguf');
+    const promise = manager.download('https://example.com/model.gguf', 'model.gguf');
+    await tick();
     await manager.cancelDownload();
     expect(downloader.cancel).toHaveBeenCalled();
+    await promise;
+    expect((await manager.getStatus()).state).toBe('missing');
   });
 
   it('reports error when download fails', async () => {
