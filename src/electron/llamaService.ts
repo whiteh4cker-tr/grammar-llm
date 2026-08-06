@@ -79,4 +79,18 @@ export class LlamaCorrectionService implements SentenceCorrector {
     if (this.session) return { state: 'ready', modelName: this.modelManager.getModelPath() ?? undefined };
     return { state: 'missing' };
   }
+
+  /** Dispose the loaded model so a different one can be loaded. */
+  async reset(): Promise<void> {
+    if (this.session) {
+      try {
+        this.session.dispose({ disposeSequence: true });
+      } catch (error) {
+        console.error('Failed to dispose model session:', error);
+      }
+    }
+    this.session = null;
+    this.loading = null;
+    this.loadError = null;
+  }
 }

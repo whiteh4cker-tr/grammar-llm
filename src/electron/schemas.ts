@@ -27,3 +27,5 @@ export const downloadRequestSchema = z.object({
   url: z.string().url(),
   fileName: z.string(),
 });
+
+export const modelFileSchema = z.object({ fileName: z.string() });

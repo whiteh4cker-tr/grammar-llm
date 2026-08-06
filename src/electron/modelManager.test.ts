@@ -99,3 +99,98 @@ describe('ModelManager', () => {
     expect((await manager.getStatus()).state).toBe('error');
   });
 });
+
+describe('ModelManager selection & deletion', () => {
+  function makeSelectionManager(overrides: {
+    files?: string[];
+    selection?: string | null;
+  } = {}) {
+    let saved: string | null = overrides.selection ?? null;
+    const downloader = fakeDownloader();
+    const factory: DownloaderFactory = { create: vi.fn().mockReturnValue(downloader) };
+    const deleteFile = vi.fn().mockResolvedValue(undefined);
+    const manager = new ModelManager({
+      modelsDir: '/fake/models',
+      listModels: async () => overrides.files ?? [],
+      factory,
+      loadSelection: async () => saved,
+      saveSelection: vi.fn().mockImplementation(async (name: string | null) => { saved = name; }),
+      deleteFile,
+    });
+    return { manager, deleteFile, downloader, getSaved: () => saved };
+  }
+
+  it('loads the persisted selection when its file exists', async () => {
+    const { manager } = makeSelectionManager({ files: ['A.gguf', 'B.gguf'], selection: 'B.gguf' });
+    const status = await manager.getStatus();
+    expect(status).toEqual({ state: 'ready', modelName: 'B.gguf' });
+  });
+
+  it('falls back to the first model when selection is stale', async () => {
+    const { manager } = makeSelectionManager({ files: ['A.gguf'], selection: 'gone.gguf' });
+    expect((await manager.getStatus()).modelName).toBe('A.gguf');
+  });
+
+  it('select persists and switches the active model', async () => {
+    const { manager } = makeSelectionManager({ files: ['A.gguf', 'B.gguf'], selection: 'A.gguf' });
+    await manager.select('B.gguf');
+    const status = await manager.getStatus();
+    expect(status.modelName).toBe('B.gguf');
+    expect(manager.getModelPath()).toContain('B.gguf');
+  });
+
+  it('select rejects unknown models', async () => {
+    const { manager } = makeSelectionManager({ files: ['A.gguf'] });
+    await expect(manager.select('nope.gguf')).rejects.toThrow();
+  });
+
+  it('delete removes the file, clears selection, falls back to remaining model', async () => {
+    const files = ['A.gguf', 'B.gguf'];
+    let saved: string | null = 'A.gguf';
+    const deleteFile = vi.fn().mockImplementation(async (name: string) => {
+      const i = files.indexOf(name);
+      if (i >= 0) files.splice(i, 1);
+    });
+    const manager = new ModelManager({
+      modelsDir: '/fake/models',
+      listModels: async () => files,
+      factory: { create: vi.fn() },
+      loadSelection: async () => saved,
+      saveSelection: vi.fn().mockImplementation(async (name: string | null) => { saved = name; }),
+      deleteFile,
+    });
+    await manager.deleteModel('A.gguf');
+    expect(deleteFile).toHaveBeenCalledWith('A.gguf');
+    expect(saved).toBeNull();
+    expect(await manager.getStatus()).toEqual({ state: 'ready', modelName: 'B.gguf' });
+  });
+
+  it('delete of the last model leaves the app missing', async () => {
+    const files = ['A.gguf'];
+    let saved: string | null = 'A.gguf';
+    const deleteFile = vi.fn().mockImplementation(async (name: string) => {
+      const i = files.indexOf(name);
+      if (i >= 0) files.splice(i, 1);
+    });
+    const manager = new ModelManager({
+      modelsDir: '/fake/models',
+      listModels: async () => files,
+      factory: { create: vi.fn() },
+      loadSelection: async () => saved,
+      saveSelection: vi.fn().mockImplementation(async (name: string | null) => { saved = name; }),
+      deleteFile,
+    });
+    await manager.deleteModel('A.gguf');
+    expect((await manager.getStatus()).state).toBe('missing');
+  });
+
+  it('download success persists the new model as selection', async () => {
+    const { manager, downloader, getSaved } = makeSelectionManager({ files: [] });
+    const promise = manager.download('https://example.com/new.gguf', 'new.gguf');
+    await tick();
+    downloader.resolveDownload();
+    await promise;
+    expect(getSaved()).toBe('new.gguf');
+    expect((await manager.getStatus()).modelName).toBe('new.gguf');
+  });
+});

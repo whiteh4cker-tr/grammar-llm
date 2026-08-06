@@ -6,7 +6,7 @@ import { ScoreBadge } from './ScoreBadge';
 import { ReportButton } from './ReportButton';
 import { ThemeToggle } from './ThemeToggle';
 
-export default function GrammarApp() {
+export default function GrammarApp({ onManageModel }: { onManageModel?: () => void }) {
   const [text, setText] = useState('');
   const [corrections, setCorrections] = useState<CorrectionResponse | null>(null);
   const [applied, setApplied] = useState<Set<number>>(new Set());
@@ -103,6 +103,11 @@ export default function GrammarApp() {
   return (
     <div className="app-shell">
       <ThemeToggle />
+      {onManageModel && (
+        <button className="model-btn" onClick={onManageModel} title="Change or manage the LLM model">
+          Model
+        </button>
+      )}
 
       <header className="app-header">
         <h1>GrammarLLM</h1>

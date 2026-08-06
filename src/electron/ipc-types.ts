@@ -34,6 +34,9 @@ export interface IpcApi {
   applySuggestion(args: ApplySuggestionRequest): Promise<{ correctedText: string }>;
   applyMany(args: ApplyManyRequest): Promise<{ correctedText: string }>;
   modelStatus(): Promise<ModelStatus>;
+  listModels(): Promise<string[]>;
+  selectModel(args: { fileName: string }): Promise<ModelStatus>;
+  deleteModel(args: { fileName: string }): Promise<ModelStatus>;
   downloadModel(args: ModelDownloadRequest): Promise<void>;
   cancelDownload(): Promise<void>;
   onDownloadProgress(cb: (progress: DownloadProgress) => void): () => void;

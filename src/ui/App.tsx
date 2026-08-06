@@ -6,6 +6,7 @@ import type { ModelStatus } from '../electron/ipc-types';
 
 export default function App() {
   const [status, setStatus] = useState<ModelStatus | null>(null);
+  const [manageOpen, setManageOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -22,8 +23,17 @@ export default function App() {
   }, []);
 
   if (!status) return <div className="app-loading">Loading…</div>;
-  if (status.state === 'missing' || status.state === 'downloading' || status.state === 'error') {
-    return <ModelGate status={status} />;
+
+  const needsModel = status.state === 'missing' || status.state === 'downloading' || status.state === 'error';
+
+  if (needsModel || manageOpen) {
+    return (
+      <ModelGate
+        status={status}
+        mode={needsModel ? 'required' : 'manage'}
+        onClose={() => setManageOpen(false)}
+      />
+    );
   }
-  return <GrammarApp />;
+  return <GrammarApp onManageModel={() => setManageOpen(true)} />;
 }

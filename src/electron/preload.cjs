@@ -5,6 +5,9 @@ contextBridge.exposeInMainWorld('api', {
   applySuggestion: (args) => ipcRenderer.invoke('suggestion:apply', args),
   applyMany: (args) => ipcRenderer.invoke('suggestion:applyMany', args),
   modelStatus: () => ipcRenderer.invoke('model:status'),
+  listModels: () => ipcRenderer.invoke('model:list'),
+  selectModel: (args) => ipcRenderer.invoke('model:select', args),
+  deleteModel: (args) => ipcRenderer.invoke('model:delete', args),
   downloadModel: (args) => ipcRenderer.invoke('model:download', args),
   cancelDownload: () => ipcRenderer.invoke('model:cancel-download'),
   onDownloadProgress: (cb) => {
