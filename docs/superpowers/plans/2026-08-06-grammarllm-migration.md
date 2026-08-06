@@ -1718,7 +1718,7 @@ app.on('ready', async () => {
     width: 1100,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
+      preload: path.join(import.meta.dirname, 'preload.cjs'), // ESM: no __dirname; Electron 43 has import.meta.dirname
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
