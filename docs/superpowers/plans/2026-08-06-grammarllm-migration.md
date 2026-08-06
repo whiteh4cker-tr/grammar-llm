@@ -174,9 +174,14 @@ describe('splitIntoSentences', () => {
     expect(result.map((s) => s.text)).toEqual(['Dr. Smith went home.', 'He slept.']);
   });
 
-  it('does not split after decimals (Python quirk: swallows following sentence)', () => {
+  it('splits when decimal is beyond the last-10-chars window (matches Python)', () => {
     const result = splitIntoSentences('It costs 3.5 dollars. Really.');
-    expect(result.map((s) => s.text)).toEqual(['It costs 3.5 dollars. Really.']);
+    expect(result.map((s) => s.text)).toEqual(['It costs 3.5 dollars.', 'Really.']);
+  });
+
+  it('does not split when a decimal is within the last 10 chars (Python quirk: swallows following sentence)', () => {
+    const result = splitIntoSentences('Total is 3.5. Next.');
+    expect(result.map((s) => s.text)).toEqual(['Total is 3.5. Next.']);
   });
 
   it('splits after U.S. initials', () => {
@@ -233,6 +238,10 @@ export function splitIntoSentences(text: string): SentenceData[] {
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
     potentialSplits.push(match);
+    // JS exec() loops forever on zero-width matches; Python's finditer()
+    // auto-advances. Guard required because the second alternative
+    // `(?<=[.!?])\s*$` can match zero-width.
+    if (match.index === re.lastIndex) re.lastIndex++;
   }
 
   for (const match of potentialSplits) {
@@ -334,17 +343,19 @@ describe('cleanCorrectedText', () => {
     expect(cleanCorrectedText('Here is the corrected sentence: Go now.', 'go now.')).toBe('Go now.');
   });
 
-  it('removes repeated 5-word segments', () => {
+  it('removes repeated 5-word segments (keeps first 5 words, matching Python)', () => {
     const input = 'the cat sat on the mat the cat sat on the mat and then left';
-    expect(cleanCorrectedText(input, '')).toBe('the cat sat on the mat');
+    expect(cleanCorrectedText(input, '')).toBe('the cat sat on the');
   });
 
   it('restores capitalization to match original', () => {
     expect(cleanCorrectedText('hello world', 'Hello world')).toBe('Hello world');
   });
 
-  it('fixes duplicate punctuation around quotes', () => {
-    expect(cleanCorrectedText('He said "stop.".', 'He said "stop".')).toBe('He said "stop."');
+  it('replicates Python quirk: quote cleanup then re-appends ending period', () => {
+    // Bug-for-bug: after `".` -> `."` cleanup, the string ends with a quote,
+    // so the ending-punctuation restore re-appends the period. Python does the same.
+    expect(cleanCorrectedText('He said "stop.".', 'He said "stop".')).toBe('He said "stop.".');
   });
 
   it('restores ending punctuation from original', () => {
@@ -635,11 +646,11 @@ describe('reconstructTextFromSentences', () => {
     expect(reconstructTextFromSentences(original, data, ['One!'])).toBe(original);
   });
 
-  it('drops trailing whitespace after the last sentence (Python quirk)', () => {
+  it('preserves trailing whitespace after the last sentence', () => {
     const original = 'One. Two.\n\n\n';
     const data = splitIntoSentences(original);
     const result = reconstructTextFromSentences(original, data, ['One!', 'Two?']);
-    expect(result).toBe('One! Two?');
+    expect(result).toBe('One! Two?\n\n\n');
   });
 });
 ```
@@ -754,8 +765,9 @@ describe('applySuggestion', () => {
   });
 
   it('falls back to nearest occurrence when span mismatches', () => {
+    // approx start 99 -> nearest occurrence is the second 'dont' (Python: min by |sp[0]-start|)
     const s = makeSuggestion({ original: 'dont', corrected: "don't", start_index: 99, end_index: 103 });
-    expect(applySuggestion('dont dont.', 0, [s])).toBe("don't dont.");
+    expect(applySuggestion('dont dont.', 0, [s])).toBe("dont don't.");
   });
 
   it('leaves text unchanged when original not found', () => {
@@ -941,10 +953,10 @@ describe('correctText', () => {
   });
 
   it('skips sentences shorter than 2 chars', async () => {
-    const corrector = fakeCorrector({ 'A.': 'Yo.' });
-    const result = await correctText('A.', corrector);
+    const corrector = fakeCorrector({});
+    const result = await correctText('x', corrector);
     expect(result.suggestions).toHaveLength(0);
-    expect(result.correctedText).toBe('A.');
+    expect(result.correctedText).toBe('x');
   });
 
   it('rejects corrections longer than 2x the original', async () => {
@@ -955,12 +967,13 @@ describe('correctText', () => {
     expect(result.suggestions).toHaveLength(0);
   });
 
-  it('omits quote-only changes from suggestions', async () => {
+  it('omits quote-only changes from suggestions and keeps original text', async () => {
     const text = "He said 'hi'.";
     const corrector = fakeCorrector({ [text]: 'He said \u2018hi\u2019.' });
     const result = await correctText(text, corrector);
     expect(result.suggestions).toHaveLength(0);
-    expect(result.correctedText).toBe('He said \u2018hi\u2019.');
+    // Python: correct_sentence returns the ORIGINAL sentence for quote-only changes
+    expect(result.correctedText).toBe(text);
   });
 
   it('omits suggestions when correction is >1.5x original length', async () => {
@@ -1322,7 +1335,10 @@ export class ModelManager {
 
   async getStatus(): Promise<ModelStatus> {
     if (this.state === 'downloading') return { state: 'downloading', modelName: this.modelName };
-    if (this.modelName) return { state: 'ready', modelName: this.modelName };
+    if (this.state === 'error') return { state: 'error', modelName: this.modelName };
+    if (this.state === 'ready' && this.modelName) return { state: 'ready', modelName: this.modelName };
+    // Initial state: scan the models dir (modelName presence alone is NOT
+    // proof of readiness — a canceled download leaves modelName set).
     const files = await this.listModels();
     if (files.length > 0) {
       this.modelName = files[0];

@@ -47,7 +47,10 @@ export class ModelManager {
 
   async getStatus(): Promise<ModelStatus> {
     if (this.state === 'downloading') return { state: 'downloading', modelName: this.modelName };
-    if (this.modelName) return { state: 'ready', modelName: this.modelName };
+    if (this.state === 'error') return { state: 'error', modelName: this.modelName };
+    if (this.state === 'ready' && this.modelName) return { state: 'ready', modelName: this.modelName };
+    // Initial state: scan the models dir (modelName presence alone is NOT
+    // proof of readiness — a canceled download leaves modelName set).
     const files = await this.listModels();
     if (files.length > 0) {
       this.modelName = files[0];
