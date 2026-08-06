@@ -3,8 +3,16 @@ import { ModelManager, type ModelDownloader, type DownloaderFactory } from './mo
 
 function fakeDownloader() {
   const callbacks = new Set<(p: { transferredBytes: number; totalBytes: number }) => void>();
+  let resolveDownload!: (value: unknown) => void;
+  let rejectDownload!: (error: unknown) => void;
+  const download = vi.fn().mockImplementation(
+    () => new Promise((resolve, reject) => {
+      resolveDownload = resolve;
+      rejectDownload = reject;
+    }),
+  );
   return {
-    download: vi.fn().mockResolvedValue(undefined),
+    download,
     cancel: vi.fn().mockResolvedValue(undefined),
     onProgress: vi.fn().mockImplementation((cb: (p: { transferredBytes: number; totalBytes: number }) => void) => {
       callbacks.add(cb);
@@ -12,6 +20,8 @@ function fakeDownloader() {
     emit(transferredBytes: number, totalBytes: number) {
       callbacks.forEach((cb) => cb({ transferredBytes, totalBytes }));
     },
+    resolveDownload: () => resolveDownload(undefined),
+    rejectDownload: (error: unknown) => rejectDownload(error),
   };
 }
 
@@ -61,6 +71,7 @@ describe('ModelManager', () => {
     expect((await manager.getStatus()).state).toBe('downloading');
 
     downloader.emit(100, 200);
+    downloader.resolveDownload();
     await promise;
     expect(progressEvents).toEqual([{ percent: 50, transferred: 100, total: 200 }]);
     expect((await manager.getStatus()).state).toBe('ready');
@@ -73,15 +84,18 @@ describe('ModelManager', () => {
     await tick();
     await manager.cancelDownload();
     expect(downloader.cancel).toHaveBeenCalled();
+    downloader.resolveDownload();
     await promise;
     expect((await manager.getStatus()).state).toBe('missing');
   });
 
   it('reports error when download fails', async () => {
     const downloader = fakeDownloader();
-    downloader.download.mockRejectedValue(new Error('network down'));
     const { manager } = makeManager({ downloader });
-    await expect(manager.download('https://example.com/model.gguf', 'model.gguf')).rejects.toThrow('network down');
+    const promise = manager.download('https://example.com/model.gguf', 'model.gguf');
+    await tick();
+    downloader.rejectDownload(new Error('network down'));
+    await expect(promise).rejects.toThrow('network down');
     expect((await manager.getStatus()).state).toBe('error');
   });
 });
