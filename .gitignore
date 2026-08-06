@@ -12,6 +12,7 @@ dist
 dist-react
 dist-electron
 /models
+/docs
 *.local
 
 # Editor directories and files
