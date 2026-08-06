@@ -81,7 +81,7 @@ npm run dev:electron     # builds React + compiles main process, then launches t
 
 On first launch you'll see the model download screen. Pick a model (~2–4 GB, resumable) and the editor opens.
 
-> The model is stored in `./models` (dev) or the OS user-data directory (packaged app). Never committed.
+> The model is stored in `./models` (dev), next to the exe for **portable** builds, or the OS user-data directory (installed builds). Never committed.
 
 ### Scripts
 
@@ -122,6 +122,8 @@ npm run dist:win    # or dist:mac / dist:linux (build on the target OS)
 - Output lands in `dist/`
 - node-llama-cpp native binaries are unpacked from the asar archive (`asarUnpack`) — required for the packaged app to run
 - App icon: `desktopIcon.png` (512×512)
+- Artifacts are named after `productName` (e.g. `GrammarLLM 0.0.0.exe`)
+- **Portable builds store models in a `models` folder next to the exe** (via `PORTABLE_EXECUTABLE_DIR`); installed builds use the user-data directory. Keep the exe in a writable folder (not `Program Files`).
 - Installs are unsigned by default (`CSC_IDENTITY_AUTO_DISCOVERY=false`); set `CSC_LINK`/`CSC_KEY_PASSWORD` when you have a signing certificate
 
 ## 🔄 Differences from the main branch

@@ -6,6 +6,12 @@ import { LlamaCorrectionService } from './llamaService.js';
 import type { DownloadProgress } from './ipc-types.js';
 
 function getModelsDir(): string {
+  // Portable builds: electron-builder sets PORTABLE_EXECUTABLE_DIR to the
+  // folder containing the exe — store models right next to it.
+  const portableDir = process.env.PORTABLE_EXECUTABLE_DIR;
+  if (app.isPackaged && portableDir) {
+    return path.join(portableDir, 'models');
+  }
   return app.isPackaged
     ? path.join(app.getPath('userData'), 'models')
     : path.join(app.getAppPath(), 'models');
