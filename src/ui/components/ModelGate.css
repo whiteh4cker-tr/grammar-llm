@@ -1,0 +1,40 @@
+.model-gate {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  text-align: center;
+}
+.model-gate h1 {
+  font-size: 2.2rem;
+  margin-bottom: 8px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+.model-gate-subtitle { opacity: 0.9; margin-bottom: 24px; }
+.model-options { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.model-option {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 16px; border-radius: 10px; cursor: pointer;
+  border: 2px solid transparent; background: rgba(255, 255, 255, 0.12);
+}
+.model-option.selected { border-color: #667eea; background: rgba(102, 126, 234, 0.2); }
+.model-option div { display: flex; flex-direction: column; text-align: left; }
+.model-option span { opacity: 0.75; font-size: 0.9em; }
+.download-btn {
+  padding: 12px 28px; border: none; border-radius: 8px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white; font-size: 1em; font-weight: 600; cursor: pointer;
+}
+.download-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+.download-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.download-area button {
+  padding: 10px 20px; border: none; border-radius: 6px;
+  background: #e53e3e; color: white; font-weight: 600; cursor: pointer;
+}
+.progress-bar {
+  height: 10px; border-radius: 5px; overflow: hidden;
+  background: rgba(128, 128, 128, 0.25); margin-bottom: 8px;
+}
+.progress-fill { height: 100%; background: linear-gradient(135deg, #667eea, #764ba2); transition: width 0.2s; }
+.model-gate-error { color: #fc8181; margin-bottom: 12px; }
+.download-area { margin-top: 8px; }
+.download-area p { margin-bottom: 12px; }

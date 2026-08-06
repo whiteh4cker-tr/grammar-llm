@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ModelManager, type ModelDownloader, type DownloaderFactory } from './modelManager';
+import { ModelManager, type DownloaderFactory } from './modelManager';
 
 function fakeDownloader() {
   const callbacks = new Set<(p: { transferredBytes: number; totalBytes: number }) => void>();
