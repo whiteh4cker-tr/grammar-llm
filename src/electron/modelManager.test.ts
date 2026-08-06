@@ -34,12 +34,37 @@ function makeManager(overrides: { files?: string[]; downloader?: ReturnType<type
     modelsDir: '/fake/models',
     listModels: async () => overrides.files ?? [],
     factory,
+    loadSettings: async () => ({}),
+    saveSettings: async () => {},
   });
   return { manager, downloader, factory };
 }
 
 // Let pending microtasks (download continuation) run before asserting state.
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  function makeSelectionManager(overrides: {
+    files?: string[];
+    selection?: string | null;
+    contextSize?: number;
+  } = {}) {
+    let saved: { selected?: string | null; contextSize?: number } = {
+      selected: overrides.selection ?? null,
+      contextSize: overrides.contextSize,
+    };
+    const downloader = fakeDownloader();
+    const factory: DownloaderFactory = { create: vi.fn().mockReturnValue(downloader) };
+    const deleteFile = vi.fn().mockResolvedValue(undefined);
+    const manager = new ModelManager({
+      modelsDir: '/fake/models',
+      listModels: async () => overrides.files ?? [],
+      factory,
+      loadSettings: async () => saved,
+      saveSettings: vi.fn().mockImplementation(async (settings) => { saved = { ...saved, ...settings }; }),
+      deleteFile,
+    });
+    return { manager, deleteFile, downloader, getSaved: () => saved };
+  }
 
 describe('ModelManager', () => {
   it('reports missing when no model files exist', async () => {
@@ -62,12 +87,12 @@ describe('ModelManager', () => {
     manager.onDownloadProgress((p) => progressEvents.push(p));
 
     const promise = manager.download('https://example.com/model.gguf', 'model.gguf');
+    await tick();
     expect(factory.create).toHaveBeenCalledWith({
       url: 'https://example.com/model.gguf',
       dir: '/fake/models',
       fileName: 'model.gguf',
     });
-    await tick();
     expect((await manager.getStatus()).state).toBe('downloading');
 
     downloader.emit(100, 200);
@@ -101,24 +126,6 @@ describe('ModelManager', () => {
 });
 
 describe('ModelManager selection & deletion', () => {
-  function makeSelectionManager(overrides: {
-    files?: string[];
-    selection?: string | null;
-  } = {}) {
-    let saved: string | null = overrides.selection ?? null;
-    const downloader = fakeDownloader();
-    const factory: DownloaderFactory = { create: vi.fn().mockReturnValue(downloader) };
-    const deleteFile = vi.fn().mockResolvedValue(undefined);
-    const manager = new ModelManager({
-      modelsDir: '/fake/models',
-      listModels: async () => overrides.files ?? [],
-      factory,
-      loadSelection: async () => saved,
-      saveSelection: vi.fn().mockImplementation(async (name: string | null) => { saved = name; }),
-      deleteFile,
-    });
-    return { manager, deleteFile, downloader, getSaved: () => saved };
-  }
 
   it('loads the persisted selection when its file exists', async () => {
     const { manager } = makeSelectionManager({ files: ['A.gguf', 'B.gguf'], selection: 'B.gguf' });
@@ -146,7 +153,7 @@ describe('ModelManager selection & deletion', () => {
 
   it('delete removes the file, clears selection, falls back to remaining model', async () => {
     const files = ['A.gguf', 'B.gguf'];
-    let saved: string | null = 'A.gguf';
+    let saved: { selected?: string | null } = { selected: 'A.gguf' };
     const deleteFile = vi.fn().mockImplementation(async (name: string) => {
       const i = files.indexOf(name);
       if (i >= 0) files.splice(i, 1);
@@ -155,19 +162,19 @@ describe('ModelManager selection & deletion', () => {
       modelsDir: '/fake/models',
       listModels: async () => files,
       factory: { create: vi.fn() },
-      loadSelection: async () => saved,
-      saveSelection: vi.fn().mockImplementation(async (name: string | null) => { saved = name; }),
+      loadSettings: async () => saved,
+      saveSettings: vi.fn().mockImplementation(async (settings) => { saved = { ...saved, ...settings }; }),
       deleteFile,
     });
     await manager.deleteModel('A.gguf');
     expect(deleteFile).toHaveBeenCalledWith('A.gguf');
-    expect(saved).toBeNull();
+    expect(saved.selected).toBeNull();
     expect(await manager.getStatus()).toEqual({ state: 'ready', modelName: 'B.gguf' });
   });
 
   it('delete of the last model leaves the app missing', async () => {
     const files = ['A.gguf'];
-    let saved: string | null = 'A.gguf';
+    let saved: { selected?: string | null } = { selected: 'A.gguf' };
     const deleteFile = vi.fn().mockImplementation(async (name: string) => {
       const i = files.indexOf(name);
       if (i >= 0) files.splice(i, 1);
@@ -176,8 +183,8 @@ describe('ModelManager selection & deletion', () => {
       modelsDir: '/fake/models',
       listModels: async () => files,
       factory: { create: vi.fn() },
-      loadSelection: async () => saved,
-      saveSelection: vi.fn().mockImplementation(async (name: string | null) => { saved = name; }),
+      loadSettings: async () => saved,
+      saveSettings: vi.fn().mockImplementation(async (settings) => { saved = { ...saved, ...settings }; }),
       deleteFile,
     });
     await manager.deleteModel('A.gguf');
@@ -190,7 +197,42 @@ describe('ModelManager selection & deletion', () => {
     await tick();
     downloader.resolveDownload();
     await promise;
-    expect(getSaved()).toBe('new.gguf');
+    expect(getSaved().selected).toBe('new.gguf');
     expect((await manager.getStatus()).modelName).toBe('new.gguf');
+  });
+});
+
+describe('ModelManager context size', () => {
+  it('defaults to 8192', async () => {
+    const { manager } = makeSelectionManager({ files: [] });
+    expect(await manager.getContextSize()).toBe(8192);
+  });
+
+  it('loads a persisted context size', async () => {
+    const { manager } = makeSelectionManager({ files: [], contextSize: 4096 });
+    expect(await manager.getContextSize()).toBe(4096);
+  });
+
+  it('setContextSize persists the value', async () => {
+    const { manager, getSaved } = makeSelectionManager({ files: [] });
+    await manager.setContextSize(16384);
+    expect(await manager.getContextSize()).toBe(16384);
+    expect(getSaved().contextSize).toBe(16384);
+  });
+
+  it('setContextSize rejects invalid values', async () => {
+    const { manager } = makeSelectionManager({ files: [] });
+    await expect(manager.setContextSize(100)).rejects.toThrow();
+    await expect(manager.setContextSize(1_000_000)).rejects.toThrow();
+    await expect(manager.setContextSize(4096.5)).rejects.toThrow();
+  });
+
+  it('download success keeps the configured context size in settings', async () => {
+    const { manager, downloader, getSaved } = makeSelectionManager({ files: [], contextSize: 4096 });
+    const promise = manager.download('https://example.com/new.gguf', 'new.gguf');
+    await tick();
+    downloader.resolveDownload();
+    await promise;
+    expect(getSaved().contextSize).toBe(4096);
   });
 });

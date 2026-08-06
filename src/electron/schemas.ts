@@ -29,3 +29,9 @@ export const downloadRequestSchema = z.object({
 });
 
 export const modelFileSchema = z.object({ fileName: z.string() });
+
+export const contextSizeSchema = z
+  .number()
+  .int()
+  .min(256)
+  .max(131_072);

@@ -127,3 +127,52 @@
 .model-gate-error { color: #fc8181; margin-bottom: 12px; }
 .download-area { margin-top: 8px; }
 .download-area p { margin-bottom: 12px; }
+
+.context-size-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  text-align: left;
+}
+.context-size-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.context-size-label span {
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+.context-size-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.context-size-input {
+  width: 110px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.25);
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+.context-size-input:focus { outline: none; border-color: #667eea; }
+.context-save-btn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #667eea;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+.context-save-btn:hover { background: #764ba2; }
+.context-saved-note { font-size: 0.8em; color: #68d391; }

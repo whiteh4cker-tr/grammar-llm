@@ -37,6 +37,8 @@ export interface IpcApi {
   listModels(): Promise<string[]>;
   selectModel(args: { fileName: string }): Promise<ModelStatus>;
   deleteModel(args: { fileName: string }): Promise<ModelStatus>;
+  getSettings(): Promise<{ contextSize: number }>;
+  setContextSize(args: { contextSize: number }): Promise<{ contextSize: number }>;
   downloadModel(args: ModelDownloadRequest): Promise<void>;
   cancelDownload(): Promise<void>;
   onDownloadProgress(cb: (progress: DownloadProgress) => void): () => void;

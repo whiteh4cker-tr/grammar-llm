@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { correctRequestSchema, applyRequestSchema, downloadRequestSchema } from './schemas';
+import { correctRequestSchema, applyRequestSchema, downloadRequestSchema, contextSizeSchema } from './schemas';
 
 describe('IPC schemas', () => {
   it('accepts a valid correct request', () => {
@@ -24,5 +24,20 @@ describe('IPC schemas', () => {
     });
     expect(parsed.suggestionIndex).toBe(0);
     expect(parsed.suggestions[0].start_index).toBe(0);
+  });
+});
+
+describe('contextSizeSchema', () => {
+  it('accepts the default 8192', () => {
+    expect(contextSizeSchema.parse(8192)).toBe(8192);
+  });
+
+  it('rejects values below 256 or above 131072', () => {
+    expect(() => contextSizeSchema.parse(255)).toThrow();
+    expect(() => contextSizeSchema.parse(131_073)).toThrow();
+  });
+
+  it('rejects non-integers', () => {
+    expect(() => contextSizeSchema.parse(4096.5)).toThrow();
   });
 });

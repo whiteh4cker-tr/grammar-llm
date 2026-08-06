@@ -32,9 +32,10 @@ export class LlamaCorrectionService implements SentenceCorrector {
     this.loading = (async () => {
       const modelPath = this.modelManager.getModelPath();
       if (!modelPath) throw new Error('No model found');
+      const contextSize = await this.modelManager.getContextSize();
       const llama = await getLlama(); // auto-detects CUDA / Metal / Vulkan / CPU
       const model = await llama.loadModel({ modelPath });
-      const context = await model.createContext({ contextSize: 4096 });
+      const context = await model.createContext({ contextSize });
       this.session = new LlamaChatSession({
         contextSequence: context.getSequence(),
         systemPrompt: SYSTEM_PROMPT,

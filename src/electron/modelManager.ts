@@ -11,23 +11,33 @@ export interface DownloaderFactory {
   create(model: { url: string; dir: string; fileName: string }): ModelDownloader | Promise<ModelDownloader>;
 }
 
+export interface ModelSettings {
+  selected?: string | null;
+  contextSize?: number;
+}
+
 export interface ModelManagerOptions {
   modelsDir: string;
   listModels?: () => Promise<string[]>;
   factory?: DownloaderFactory;
-  loadSelection?: () => Promise<string | null>;
-  saveSelection?: (name: string | null) => Promise<void>;
+  loadSettings?: () => Promise<ModelSettings>;
+  saveSettings?: (settings: ModelSettings) => Promise<void>;
   deleteFile?: (fileName: string) => Promise<void>;
 }
 
-const SELECTION_FILE = 'selected.json';
+export const DEFAULT_CONTEXT_SIZE = 8192;
+export const MIN_CONTEXT_SIZE = 256;
+export const MAX_CONTEXT_SIZE = 131_072;
+
+const SETTINGS_FILE = 'settings.json';
+const LEGACY_SELECTION_FILE = 'selected.json';
 
 export class ModelManager {
   private readonly modelsDir: string;
   private readonly listModels: () => Promise<string[]>;
   private readonly factory: DownloaderFactory;
-  private readonly loadSelection: () => Promise<string | null>;
-  private readonly saveSelection: (name: string | null) => Promise<void>;
+  private readonly loadSettings: () => Promise<ModelSettings>;
+  private readonly saveSettings: (settings: ModelSettings) => Promise<void>;
   private readonly deleteFile: (fileName: string) => Promise<void>;
   private currentDownload: ModelDownloader | null = null;
   private progressListeners = new Set<(p: DownloadProgress) => void>();
@@ -35,7 +45,8 @@ export class ModelManager {
   private modelName: string | undefined;
   private cancelRequested = false;
   private selectedModel: string | null = null;
-  private selectionLoaded: Promise<void> | null = null;
+  private contextSize = DEFAULT_CONTEXT_SIZE;
+  private settingsLoaded: Promise<void> | null = null;
 
   constructor(options: ModelManagerOptions) {
     this.modelsDir = options.modelsDir;
@@ -49,19 +60,25 @@ export class ModelManager {
       }
     });
     this.factory = options.factory ?? createNodeLlamaDownloaderFactory();
-    this.loadSelection = options.loadSelection ?? (async () => {
+    this.loadSettings = options.loadSettings ?? (async () => {
       const fs = await import('fs/promises');
       try {
-        const raw = await fs.readFile(path.join(this.modelsDir, SELECTION_FILE), 'utf8');
-        const parsed = JSON.parse(raw) as { selected?: string | null };
-        return parsed.selected ?? null;
+        const raw = await fs.readFile(path.join(this.modelsDir, SETTINGS_FILE), 'utf8');
+        return JSON.parse(raw) as ModelSettings;
       } catch {
-        return null;
+        // Migrate from the legacy selection-only file.
+        try {
+          const raw = await fs.readFile(path.join(this.modelsDir, LEGACY_SELECTION_FILE), 'utf8');
+          const parsed = JSON.parse(raw) as { selected?: string | null };
+          return { selected: parsed.selected ?? null };
+        } catch {
+          return {};
+        }
       }
     });
-    this.saveSelection = options.saveSelection ?? (async (name) => {
+    this.saveSettings = options.saveSettings ?? (async (settings) => {
       const fs = await import('fs/promises');
-      await fs.writeFile(path.join(this.modelsDir, SELECTION_FILE), JSON.stringify({ selected: name }), 'utf8');
+      await fs.writeFile(path.join(this.modelsDir, SETTINGS_FILE), JSON.stringify(settings), 'utf8');
     });
     this.deleteFile = options.deleteFile ?? (async (fileName) => {
       const fs = await import('fs/promises');
@@ -69,16 +86,19 @@ export class ModelManager {
     });
   }
 
-  /** Lazily read the persisted selection once per process. */
-  private ensureSelectionLoaded(): Promise<void> {
-    if (!this.selectionLoaded) {
-      this.selectionLoaded = this.loadSelection().then((name) => {
-        this.selectedModel = name;
+  /** Lazily read the persisted settings once per process. */
+  private ensureSettingsLoaded(): Promise<void> {
+    if (!this.settingsLoaded) {
+      this.settingsLoaded = this.loadSettings().then((settings) => {
+        this.selectedModel = settings.selected ?? null;
+        if (typeof settings.contextSize === 'number' && Number.isInteger(settings.contextSize)) {
+          this.contextSize = settings.contextSize;
+        }
       }).catch(() => {
         this.selectedModel = null;
       });
     }
-    return this.selectionLoaded;
+    return this.settingsLoaded;
   }
 
   getModelPath(): string | null {
@@ -89,12 +109,28 @@ export class ModelManager {
     return this.listModels();
   }
 
+  async getContextSize(): Promise<number> {
+    await this.ensureSettingsLoaded();
+    return this.contextSize;
+  }
+
+  async setContextSize(contextSize: number): Promise<void> {
+    if (!Number.isInteger(contextSize) || contextSize < MIN_CONTEXT_SIZE || contextSize > MAX_CONTEXT_SIZE) {
+      throw new Error(`Context size must be an integer between ${MIN_CONTEXT_SIZE} and ${MAX_CONTEXT_SIZE}`);
+    }
+    await this.ensureSettingsLoaded();
+    this.contextSize = contextSize;
+    await this.saveSettings({ selected: this.selectedModel, contextSize }).catch((error) => {
+      console.error('Failed to persist context size:', error);
+    });
+  }
+
   async getStatus(): Promise<ModelStatus> {
     if (this.state === 'downloading') return { state: 'downloading', modelName: this.modelName };
     if (this.state === 'error') return { state: 'error', modelName: this.modelName };
     if (this.state === 'ready' && this.modelName) return { state: 'ready', modelName: this.modelName };
 
-    await this.ensureSelectionLoaded();
+    await this.ensureSettingsLoaded();
     const files = await this.listModels();
     if (files.length === 0) return { state: 'missing' };
 
@@ -113,6 +149,7 @@ export class ModelManager {
   }
 
   async download(url: string, fileName: string): Promise<void> {
+    await this.ensureSettingsLoaded();
     const downloader = await this.factory.create({ url, dir: this.modelsDir, fileName });
     this.currentDownload = downloader;
     this.state = 'downloading';
@@ -129,7 +166,7 @@ export class ModelManager {
       if (!this.cancelRequested) {
         this.state = 'ready';
         this.selectedModel = fileName;
-        await this.saveSelection(fileName).catch((error) => {
+        await this.saveSettings({ selected: fileName, contextSize: this.contextSize }).catch((error) => {
           console.error('Failed to persist model selection:', error);
         });
       }
@@ -153,7 +190,7 @@ export class ModelManager {
 
   /** Switch the active model to an installed one. */
   async select(fileName: string): Promise<void> {
-    await this.ensureSelectionLoaded();
+    await this.ensureSettingsLoaded();
     const files = await this.listModels();
     if (!files.includes(fileName)) {
       throw new Error(`Model not found: ${fileName}`);
@@ -161,20 +198,20 @@ export class ModelManager {
     this.modelName = fileName;
     this.selectedModel = fileName;
     this.state = 'ready';
-    await this.saveSelection(fileName).catch((error) => {
+    await this.saveSettings({ selected: fileName, contextSize: this.contextSize }).catch((error) => {
       console.error('Failed to persist model selection:', error);
     });
   }
 
   /** Delete an installed model file; clears the selection if it was selected. */
   async deleteModel(fileName: string): Promise<void> {
-    await this.ensureSelectionLoaded();
+    await this.ensureSettingsLoaded();
     await this.deleteFile(fileName);
     if (this.modelName === fileName || this.selectedModel === fileName) {
       this.modelName = undefined;
       this.selectedModel = null;
       this.state = 'missing';
-      await this.saveSelection(null).catch((error) => {
+      await this.saveSettings({ selected: null, contextSize: this.contextSize }).catch((error) => {
         console.error('Failed to clear model selection:', error);
       });
     }

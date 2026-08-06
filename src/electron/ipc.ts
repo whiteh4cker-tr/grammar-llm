@@ -1,7 +1,8 @@
 import { ipcMain } from 'electron';
+import { z } from 'zod';
 import { correctText } from './core/correction.js';
 import { applySuggestion, applySuggestionsBulk } from './core/apply.js';
-import { correctRequestSchema, applyRequestSchema, applyManySchema, downloadRequestSchema, modelFileSchema } from './schemas.js';
+import { correctRequestSchema, applyRequestSchema, applyManySchema, downloadRequestSchema, modelFileSchema, contextSizeSchema } from './schemas.js';
 import type { ModelManager } from './modelManager.js';
 import type { LlamaCorrectionService } from './llamaService.js';
 
@@ -9,6 +10,19 @@ export function registerIpcHandlers(modelManager: ModelManager, corrector: Llama
   ipcMain.handle('model:status', () => modelManager.getStatus());
 
   ipcMain.handle('model:list', () => modelManager.listModelFiles());
+
+  ipcMain.handle('model:get-settings', () => modelManager.getContextSize().then((contextSize) => ({ contextSize })));
+
+  ipcMain.handle('model:set-context-size', async (_event, raw) => {
+    const { contextSize } = z.object({ contextSize: contextSizeSchema }).parse(raw);
+    await modelManager.setContextSize(contextSize);
+    await corrector.reset();
+    // Reload the model with the new context size in the background.
+    void corrector.ensureLoaded().catch((error) => {
+      console.error('Failed to reload model with new context size:', error);
+    });
+    return { contextSize };
+  });
 
   ipcMain.handle('model:select', async (_event, raw) => {
     const { fileName } = modelFileSchema.parse(raw);

@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld('api', {
   listModels: () => ipcRenderer.invoke('model:list'),
   selectModel: (args) => ipcRenderer.invoke('model:select', args),
   deleteModel: (args) => ipcRenderer.invoke('model:delete', args),
+  getSettings: () => ipcRenderer.invoke('model:get-settings'),
+  setContextSize: (args) => ipcRenderer.invoke('model:set-context-size', args),
   downloadModel: (args) => ipcRenderer.invoke('model:download', args),
   cancelDownload: () => ipcRenderer.invoke('model:cancel-download'),
   onDownloadProgress: (cb) => {
