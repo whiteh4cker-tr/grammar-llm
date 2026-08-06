@@ -6,7 +6,7 @@ This is the **`electron` branch** — a full migration of the original [GrammarL
 
 ---
 
-## ✨ Features
+## Features
 
 - **Real-time grammar & spelling correction** — sentence-level error detection using the GRMR-V3-G4B LLM (quantized Q4_K_M or Q8_0)
 - **AI-powered suggestions** — per-sentence suggestion cards with word-level highlighted diffs (red = error, green = correction)
@@ -25,7 +25,7 @@ This is the **`electron` branch** — a full migration of the original [GrammarL
 - **Keyboard shortcut** — `Ctrl+Enter` (or `Cmd+Enter`) to check grammar
 - **Smart editing detection** — editing your text automatically clears stale suggestions
 
-## 🖥️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -40,7 +40,7 @@ This is the **`electron` branch** — a full migration of the original [GrammarL
 | Linting | oxlint |
 | Packaging | electron-builder (dmg / AppImage / portable / msi) |
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
@@ -65,7 +65,7 @@ src/
                          # ReportButton, pdf.ts (report builder), ThemeToggle
 ```
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Requirements
 
@@ -97,7 +97,7 @@ On first launch you'll see the model download screen. Pick a model (~2–4 GB, r
 | `npm run dist:win` | Windows x64 portable + msi (run on Windows) |
 | `npm run dist:linux` | Linux x64 AppImage (run on Linux) |
 
-## 🔍 How It Works
+## How It Works
 
 1. **Model gate** — on startup the app checks for a `.gguf` model; if none exists, the download screen is shown. Once a model is loaded, the **Model** button (top-right) reopens it in *manage mode*: switch between installed models, delete models, or download more — including a **custom GGUF URL**.
 2. **Correction pipeline** (per check): split text into sentences (abbreviation/decimal-aware) → for each sentence, prompt the LLM with a fixed system prompt and a **fresh chat history** (each sentence corrected independently) → clean the model output (strip prefixes, template tags, repeated segments) → validate (reject quote-only changes, >2× length explosions, >1.5× suggestion bloat) → diff words → reconstruct the full text preserving original spacing.
@@ -105,7 +105,7 @@ On first launch you'll see the model download screen. Pick a model (~2–4 GB, r
 4. **Score** — `round(100 × (1 − errorWords / totalWords))`.
 5. **Report** — jsPDF builds the A4 report with WCAG-compliant colors and word-wrap.
 
-## 🧪 Testing
+## Testing
 
 ```bash
 npm run test
@@ -113,7 +113,7 @@ npm run test
 
 60 unit tests cover the core engine (sentence splitting edge cases, cleaning rules, diff highlighting, reconstruction fidelity, apply/overlap logic), the model manager lifecycle (download/cancel/error states, selection persistence, delete), and IPC schema validation. Tests never download a model — the LLM layer is exercised manually.
 
-## 📦 Packaging
+## Packaging
 
 ```bash
 npm run dist:win    # or dist:mac / dist:linux (build on the target OS)
@@ -126,7 +126,7 @@ npm run dist:win    # or dist:mac / dist:linux (build on the target OS)
 - **Portable builds store models in a `models` folder next to the exe** (via `PORTABLE_EXECUTABLE_DIR`); installed builds use the user-data directory. Keep the exe in a writable folder (not `Program Files`).
 - Installs are unsigned by default (`CSC_IDENTITY_AUTO_DISCOVERY=false`); set `CSC_LINK`/`CSC_KEY_PASSWORD` when you have a signing certificate
 
-## 🔄 Differences from the python branch
+## Differences from the python branch
 
 | Aspect | `python` branch (original) | `electron` branch (this) |
 |---|---|---|
@@ -150,7 +150,3 @@ npm run dist:win    # or dist:mac / dist:linux (build on the target OS)
 - The correction engine behavior is a **bug-for-bug port** of `main.py` (sentence splitting heuristics, cleaning rules, validation thresholds, whitespace-preserving reconstruction, overlap-safe bulk apply) — verified with the original README's example output as a test fixture
 - The UI design language: same colors, dark-mode default, WCAG-compliant highlights and report
 - The model: same GRMR-V3-G4B GGUF family (repo: `icecubetr/GRMR-V3-G4B-GGUF`)
-
-## 📄 License
-
-Original project: [whiteh4cker-tr/grammar-llm](https://github.com/whiteh4cker-tr/grammar-llm) (see its `LICENSE`). This migration retains the original's license terms.
