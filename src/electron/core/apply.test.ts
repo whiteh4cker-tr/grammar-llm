@@ -20,8 +20,9 @@ describe('applySuggestion', () => {
   });
 
   it('falls back to nearest occurrence when span mismatches', () => {
+    // approx start 99 -> nearest occurrence is the second 'dont' (Python: min by |sp[0]-start|)
     const s = makeSuggestion({ original: 'dont', corrected: "don't", start_index: 99, end_index: 103 });
-    expect(applySuggestion('dont dont.', 0, [s])).toBe("don't dont.");
+    expect(applySuggestion('dont dont.', 0, [s])).toBe("dont don't.");
   });
 
   it('leaves text unchanged when original not found', () => {
