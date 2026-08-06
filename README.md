@@ -13,10 +13,11 @@ This is the **`electron` branch** — a full migration of the original [GrammarL
 - **Apply suggestions individually** — one click replaces the error span in your text; applied suggestions are tracked and filtered
 - **Writing quality score (0–100)** — computed from the error-to-word ratio, updated after every check
 - **PDF report generation** — WCAG 2.0 AA–compliant, downloadable report with the score, all suggestions, and highlighted original/corrected sentences (jsPDF)
-- **First-run model manager** — if no model is present, choose between:
-  - **Q4_K_M** — *Recommended*: faster, smaller download
-  - **Q8_0** — *Highest quality*: slower, larger download (~4 GB)
-  - Progress bar with cancel; resumable high-speed downloads
+- **Model manager** — on first run (or via the **Model** button in the app), manage your models:
+  - **GRMR-V3-G4B-Q4_K_M** — *Recommended*: faster, smaller download
+  - **GRMR-V3-G4B-Q8_0** — *Highest quality*: slower, larger download (~4 GB)
+  - **Custom GGUF URL** — paste a direct link to any .gguf model (e.g., from Hugging Face)
+  - Switch between installed models, delete models to free space, download with progress bar + cancel (resumable); selection persists across restarts
 - **Multi-backend GPU support** — llama.cpp via [node-llama-cpp](https://github.com/withcatai/node-llama-cpp) with **automatic detection**: CUDA (NVIDIA), Metal (Apple Silicon), Vulkan (AMD/Intel/NVIDIA), CPU fallback — zero configuration
 - **Fully offline & private** — model runs locally; nothing is ever sent to a server
 - **Secure by design** — sandboxed renderer, `contextIsolation`, typed IPC bridge via `contextBridge` (no raw `ipcRenderer` in the UI)
