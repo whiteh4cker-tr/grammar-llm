@@ -1,4 +1,4 @@
-import type { SentenceData } from './types';
+import type { SentenceData } from './types.js';
 
 const ABBREVIATIONS = new Set([
   'etc', 'eg', 'e.g', 'ie', 'i.e', 'vs', 'viz', 'cf', 'ca', 'approx',

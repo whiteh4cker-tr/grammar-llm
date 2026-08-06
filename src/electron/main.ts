@@ -1,9 +1,9 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
-import { registerIpcHandlers } from './ipc';
-import { ModelManager } from './modelManager';
-import { LlamaCorrectionService } from './llamaService';
-import type { DownloadProgress } from './ipc-types';
+import { registerIpcHandlers } from './ipc.js';
+import { ModelManager } from './modelManager.js';
+import { LlamaCorrectionService } from './llamaService.js';
+import type { DownloadProgress } from './ipc-types.js';
 
 function getModelsDir(): string {
   return app.isPackaged

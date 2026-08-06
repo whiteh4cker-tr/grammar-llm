@@ -1,9 +1,9 @@
 import { ipcMain } from 'electron';
-import { correctText } from './core/correction';
-import { applySuggestion, applySuggestionsBulk } from './core/apply';
-import { correctRequestSchema, applyRequestSchema, applyManySchema, downloadRequestSchema } from './schemas';
-import type { ModelManager } from './modelManager';
-import type { SentenceCorrector } from './core/types';
+import { correctText } from './core/correction.js';
+import { applySuggestion, applySuggestionsBulk } from './core/apply.js';
+import { correctRequestSchema, applyRequestSchema, applyManySchema, downloadRequestSchema } from './schemas.js';
+import type { ModelManager } from './modelManager.js';
+import type { SentenceCorrector } from './core/types.js';
 
 export function registerIpcHandlers(modelManager: ModelManager, corrector: SentenceCorrector): void {
   ipcMain.handle('model:status', () => modelManager.getStatus());

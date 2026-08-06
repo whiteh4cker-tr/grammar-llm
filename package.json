@@ -8,7 +8,7 @@
     "dev:react": "vite",
     "dev:electron": "npm run build && npm run build:electron && electron .",
     "build": "tsc -b && vite build && npm run build:electron",
-    "build:electron": "tsc -p src/electron/tsconfig.json",
+    "build:electron": "tsc -p src/electron/tsconfig.json && node -e \"require('fs').copyFileSync('src/electron/preload.cjs','dist-electron/preload.cjs')\"",
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",

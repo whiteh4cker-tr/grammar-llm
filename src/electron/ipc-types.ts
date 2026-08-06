@@ -1,4 +1,4 @@
-import type { CorrectionResponse, Suggestion } from './core/types';
+import type { CorrectionResponse, Suggestion } from './core/types.js';
 
 export interface ModelDownloadRequest {
   url: string;

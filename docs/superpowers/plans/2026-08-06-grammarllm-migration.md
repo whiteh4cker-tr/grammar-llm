@@ -1750,6 +1750,13 @@ Expected: PASS. Note: `app.getPath` is used at module scope via `getModelsDir()`
 ```bash
 git add src/electron/schemas.ts src/electron/schemas.test.ts src/electron/ipc.ts src/electron/main.ts && git commit -m "feat: wire IPC handlers and main process"
 ```
+
+**Notes from execution (already applied):**
+- `tsc -b` (root) does NOT compile the electron project (root tsconfig excludes `src/electron`). Always verify with `npx tsc -p src/electron/tsconfig.json` or `npm run build:electron`.
+- nodenext requires `.js` extensions on all relative imports in emitted ESM.
+- `preload.cjs` is not emitted by tsc — `build:electron` copies it: `tsc -p src/electron/tsconfig.json && node -e "require('fs').copyFileSync('src/electron/preload.cjs','dist-electron/preload.cjs')"`
+- ESM main process: no `__dirname` — use `import.meta.dirname`.
+- node-llama-cpp v3.19: sampling params go on `session.prompt()`, `contextSize` on `model.createContext()`, sequences via `context.getSequence()`, `repeatPenalty` is `{ penalty: 1 }` to disable, `erasableSyntaxOnly` forbids constructor parameter properties.
 ### Task 12: Model download screen
 
 **Files:**

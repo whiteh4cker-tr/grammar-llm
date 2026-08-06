@@ -1,4 +1,4 @@
-import type { SentenceData } from './types';
+import type { SentenceData } from './types.js';
 
 export function reconstructTextFromSentences(
   originalText: string,

@@ -1,5 +1,5 @@
 import path from 'path';
-import type { DownloadProgress, ModelStatus } from './ipc-types';
+import type { DownloadProgress, ModelStatus } from './ipc-types.js';
 
 export interface ModelDownloader {
   download(): Promise<unknown>;

@@ -1,8 +1,8 @@
-import { splitIntoSentences } from './sentences';
-import { cleanCorrectedText, isOnlyQuoteChange } from './clean';
-import { highlightWordDifferences } from './diff';
-import { reconstructTextFromSentences } from './reconstruct';
-import type { CorrectionResponse, SentenceCorrector } from './types';
+import { splitIntoSentences } from './sentences.js';
+import { cleanCorrectedText, isOnlyQuoteChange } from './clean.js';
+import { highlightWordDifferences } from './diff.js';
+import { reconstructTextFromSentences } from './reconstruct.js';
+import type { CorrectionResponse, SentenceCorrector } from './types.js';
 
 export function cleanQuotePunctuation(s: string): string {
   let result = s;

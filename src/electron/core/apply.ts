@@ -1,4 +1,4 @@
-import type { Suggestion } from './types';
+import type { Suggestion } from './types.js';
 
 export function findAllOccurrences(haystack: string, needle: string): Array<[number, number]> {
   if (!needle || !haystack) return [];
