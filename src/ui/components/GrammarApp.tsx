@@ -161,7 +161,7 @@ export default function GrammarApp() {
         </section>
       </main>
 
-      {toast && <Toast message={toast.message} isError={toast.isError} onDone={() => setToast(null)} />}
+      {toast && <Toast toast={toast} onDone={() => setToast(null)} />}
     </div>
   );
 }
@@ -198,10 +198,18 @@ export function findBestOccurrence(
   );
 }
 
-function Toast({ message, isError, onDone }: { message: string; isError?: boolean; onDone: () => void }) {
+function Toast({
+  toast,
+  onDone,
+}: {
+  toast: { message: string; isError?: boolean };
+  onDone: () => void;
+}) {
+  // Key the timer on the toast object identity, NOT onDone: onDone is a fresh
+  // closure every GrammarApp render, which would reset the timer forever.
   useEffect(() => {
     const timer = setTimeout(onDone, 3000);
     return () => clearTimeout(timer);
-  }, [onDone]);
-  return <div className={`toast ${isError ? 'toast-error' : ''}`}>{message}</div>;
+  }, [toast]); // eslint-disable-line react-hooks/exhaustive-deps -- onDone identity is unstable by design
+  return <div className={`toast ${toast.isError ? 'toast-error' : ''}`}>{toast.message}</div>;
 }

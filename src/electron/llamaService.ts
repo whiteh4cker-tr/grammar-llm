@@ -54,6 +54,10 @@ export class LlamaCorrectionService implements SentenceCorrector {
   async correct(sentence: string): Promise<string> {
     try {
       await this.ensureLoaded();
+      // Python sent fresh [system, user] messages per sentence. A LlamaChatSession
+      // accumulates history, so later sentences would see earlier corrections and
+      // echo them back. Reset to just the system prompt each time.
+      this.session!.resetChatHistory();
       const response = await this.session!.prompt(sentence, {
         maxTokens: sentence.length + 20,
         temperature: 0.7,
