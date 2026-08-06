@@ -1,6 +1,10 @@
 {
   "appId": "tr.alperendemir.grammarllm",
   "files": ["dist-electron", "dist-react"],
+  "asarUnpack": [
+    "**/node_modules/node-llama-cpp/**",
+    "**/node_modules/@node-llama-cpp/**"
+  ],
   "mac": {
     "target": "dmg",
     "icon": "./desktopIcon.png"
