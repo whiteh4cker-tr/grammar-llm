@@ -1,0 +1,17 @@
+{
+  "appId": "tr.alperendemir.grammarllm",
+  "files": ["dist-electron", "dist-react"],
+  "mac": {
+    "target": "dmg",
+    "icon": "./desktopIcon.png"
+  },
+  "linux": {
+    "target": "AppImage",
+    "category": "Utility",
+    "icon": "./desktopIcon.png"
+  },
+  "win": {
+    "target": ["portable", "msi"],
+    "icon": "./desktopIcon.png"
+  }
+}
