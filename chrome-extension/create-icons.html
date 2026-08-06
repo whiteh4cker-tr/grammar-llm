@@ -76,6 +76,12 @@
         <label>128x128</label>
         <button onclick="downloadIcon('icon128', 'icon128.png')">Download</button>
     </div>
+	
+	<div class="canvas-container">
+        <canvas id="icon512" width="512" height="512"></canvas>
+        <label>512x512</label>
+        <button onclick="downloadIcon('icon512', 'icon512.png')">Download</button>
+    </div>
 
     <script>
         function drawIcon(canvasId, size) {
@@ -110,6 +116,7 @@
             drawIcon('icon16', 16);
             drawIcon('icon48', 48);
             drawIcon('icon128', 128);
+			drawIcon('icon512', 512);
         };
     </script>
 </body>
