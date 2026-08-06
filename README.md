@@ -2,7 +2,7 @@
 
 A local-first grammar correction and writing quality assessment desktop application built with **Electron, React, TypeScript, and Vite**. It runs a fine-tuned LLM (GRMR-V3-G4B) entirely on your machine — no internet connection, no servers, no API keys, no data leaving your computer.
 
-This is the **`electron` branch** — a full migration of the original [GrammarLLM](https://github.com/whiteh4cker-tr/grammar-llm) (Python FastAPI + vanilla JavaScript web app) into a native desktop app. See [Differences from the main branch](#differences-from-the-main-branch) below.
+This is the **`electron` branch** — a full migration of the original [GrammarLLM](https://github.com/whiteh4cker-tr/grammar-llm) (Python FastAPI + vanilla JavaScript web app) into a native desktop app. See [Differences from the python branch](#differences-from-the-python-branch) below.
 
 ---
 
@@ -126,9 +126,9 @@ npm run dist:win    # or dist:mac / dist:linux (build on the target OS)
 - **Portable builds store models in a `models` folder next to the exe** (via `PORTABLE_EXECUTABLE_DIR`); installed builds use the user-data directory. Keep the exe in a writable folder (not `Program Files`).
 - Installs are unsigned by default (`CSC_IDENTITY_AUTO_DISCOVERY=false`); set `CSC_LINK`/`CSC_KEY_PASSWORD` when you have a signing certificate
 
-## 🔄 Differences from the main branch
+## 🔄 Differences from the python branch
 
-| Aspect | `main` branch (original) | `electron` branch (this) |
+| Aspect | `python` branch (original) | `electron` branch (this) |
 |---|---|---|
 | **Form factor** | Web app — browser + Python server | Native desktop app (Electron) |
 | **Backend** | FastAPI + uvicorn REST server | No server — main-process IPC (`ipcMain`/`contextBridge`) |
