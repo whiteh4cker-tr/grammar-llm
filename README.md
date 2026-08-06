@@ -36,7 +36,7 @@ This is the **`electron` branch** — a full migration of the original [GrammarL
 | Validation | zod (IPC payloads) |
 | Diff highlighting | jsdiff (`diff`) |
 | PDF reports | jsPDF |
-| Tests | vitest (53 unit tests) |
+| Tests | vitest (60 unit tests) |
 | Linting | oxlint |
 | Packaging | electron-builder (dmg / AppImage / portable / msi) |
 
@@ -99,7 +99,7 @@ On first launch you'll see the model download screen. Pick a model (~2–4 GB, r
 
 ## 🔍 How It Works
 
-1. **Model gate** — on startup the app checks for a `.gguf` model; if none exists, the download screen is shown.
+1. **Model gate** — on startup the app checks for a `.gguf` model; if none exists, the download screen is shown. Once a model is loaded, the **Model** button (top-right) reopens it in *manage mode*: switch between installed models, delete models, or download more — including a **custom GGUF URL**.
 2. **Correction pipeline** (per check): split text into sentences (abbreviation/decimal-aware) → for each sentence, prompt the LLM with a fixed system prompt and a **fresh chat history** (each sentence corrected independently) → clean the model output (strip prefixes, template tags, repeated segments) → validate (reject quote-only changes, >2× length explosions, >1.5× suggestion bloat) → diff words → reconstruct the full text preserving original spacing.
 3. **Suggestions** — only meaningful corrections become cards; hovering a card highlights the sentence in your editor; Apply replaces the span.
 4. **Score** — `round(100 × (1 − errorWords / totalWords))`.
@@ -111,7 +111,7 @@ On first launch you'll see the model download screen. Pick a model (~2–4 GB, r
 npm run test
 ```
 
-53 unit tests cover the core engine (sentence splitting edge cases, cleaning rules, diff highlighting, reconstruction fidelity, apply/overlap logic), the model manager lifecycle (download/cancel/error states), and IPC schema validation. Tests never download a model — the LLM layer is exercised manually.
+60 unit tests cover the core engine (sentence splitting edge cases, cleaning rules, diff highlighting, reconstruction fidelity, apply/overlap logic), the model manager lifecycle (download/cancel/error states, selection persistence, delete), and IPC schema validation. Tests never download a model — the LLM layer is exercised manually.
 
 ## 📦 Packaging
 
@@ -134,7 +134,7 @@ npm run dist:win    # or dist:mac / dist:linux (build on the target OS)
 | **Backend** | FastAPI + uvicorn REST server | No server — main-process IPC (`ipcMain`/`contextBridge`) |
 | **Language** | Python (backend) + vanilla JS (frontend) | TypeScript end-to-end (Electron, React, Node) |
 | **Inference** | `llama-cpp-python` (CPU-only) | `node-llama-cpp` — **CPU, CUDA, Metal, Vulkan** auto-detected |
-| **Model loading** | Auto-downloads fixed Q8_0 model from Hugging Face | Download manager with **choice of Q4_K_M or Q8_0**, progress bar, cancel, resume |
+| **Model loading** | Auto-downloads fixed Q8_0 model from Hugging Face | Model manager: **Q4_K_M / Q8_0 / custom GGUF URL**, progress bar, cancel, resume, **switch between installed models**, delete, persisted selection |
 | **Frontend** | Vanilla HTML/CSS/JS (`script.js`, `jspdf.umd.min.js`) | React 19 + TypeScript components |
 | **API surface** | REST endpoints (`/correct`, `/apply-suggestion`, `/health`) | Typed `window.api` over IPC (zod-validated) |
 | **Data validation** | Pydantic models | zod schemas |
@@ -142,7 +142,7 @@ npm run dist:win    # or dist:mac / dist:linux (build on the target OS)
 | **PDF report** | jsPDF via CDN script | jsPDF npm package (same WCAG layout, unit-tested builder) |
 | **Privacy** | Client-server (data crosses the network) | **Fully offline** — model runs locally, no data leaves the machine |
 | **Packaging** | Docker / `uvicorn` | electron-builder installers: dmg, AppImage, portable exe, msi |
-| **Testing** | None | 53 vitest unit tests (engine, model manager, schemas) |
+| **Testing** | None | 60 vitest unit tests (engine, model manager, schemas) |
 | **Chrome extension** | Included in repo | Out of scope (separate artifact) |
 
 ### What was preserved
