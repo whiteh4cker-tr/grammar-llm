@@ -70,7 +70,7 @@ git init && git add -A && git commit -m "chore: baseline before grammarllm migra
 - [ ] **Step 2: Install dependencies**
 
 ```bash
-npm i node-llama-cpp zod jsdiff jspdf
+npm i node-llama-cpp zod diff jspdf
 npm i -D vitest
 ```
 
@@ -456,6 +456,8 @@ git add src/electron/core && git commit -m "feat: port correction cleaning to TS
 
 **Files:**
 - Create: `src/electron/core/diff.ts`, `src/electron/core/diff.test.ts`
+
+**Note:** the jsdiff library is published on npm as `diff` (the `jsdiff` package is an abandoned v1.1.1). Import: `import { diffArrays } from 'diff';`
 
 **Interfaces:**
 - Produces: `tokenize(text: string): string[]`, `highlightWordDifferences(original: string, corrected: string): { originalHighlighted: string; correctedHighlighted: string }`
@@ -1185,7 +1187,7 @@ git add src/electron/ipc-types.ts src/electron/preload.cjs src/ui/electron-api.d
 
 **Interfaces:**
 - Consumes: `ModelStatus`, `ModelState`, `DownloadProgress` (ipc-types.ts)
-- Produces: `ModelDownloader { download(): Promise<unknown>; cancel(): Promise<void>; onProgress(cb: (p: { transferredBytes: number; totalBytes: number }) => void): void }`, `DownloaderFactory { create(model: { url: string; dir: string; fileName: string }): ModelDownloader }`, `ModelManager` class with `getStatus(): ModelStatus`, `download(url: string, fileName: string): Promise<void>`, `cancelDownload(): Promise<void>`, `getModelPath(): string | null`
+- Produces: `ModelDownloader { download(): Promise<unknown>; cancel(): Promise<void>; onProgress(cb: (p: { transferredBytes: number; totalBytes: number }) => void): void }`, `DownloaderFactory { create(model: { url: string; dir: string; fileName: string }): ModelDownloader | Promise<ModelDownloader> }` (async because node-llama-cpp is ESM-with-TLA and must be loaded via dynamic `import()`), `ModelManager` class with `getStatus(): ModelStatus`, `download(url: string, fileName: string): Promise<void>`, `cancelDownload(): Promise<void>`, `getModelPath(): string | null`
 
 - [ ] **Step 1: Write the failing tests** (`modelManager.test.ts`) — no real downloader, no network
 
@@ -1335,7 +1337,7 @@ export class ModelManager {
   }
 
   async download(url: string, fileName: string): Promise<void> {
-    const downloader = this.factory.create({ url, dir: this.modelsDir, fileName });
+    const downloader = await this.factory.create({ url, dir: this.modelsDir, fileName });
     this.currentDownload = downloader;
     this.state = 'downloading';
     this.modelName = fileName;
@@ -1369,17 +1371,33 @@ export class ModelManager {
   }
 }
 
-// Adapter around node-llama-cpp's createModelDownloader.
-// NOTE: exact option names verified against installed node-llama-cpp types in Task 1 step 6.
+// Adapter around node-llama-cpp's createModelDownloader (v3.19 API: modelUri/dirPath,
+// async factory, progress via onProgress option). node-llama-cpp is ESM with top-level
+// await, so it must be loaded via dynamic import().
 export function createNodeLlamaDownloaderFactory(): DownloaderFactory {
   return {
-    create({ url, dir, fileName }) {
-      const { createModelDownloader } = require('node-llama-cpp') as typeof import('node-llama-cpp');
-      const downloader = createModelDownloader({ model: url, dir, fileName });
+    async create({ url, dir, fileName }) {
+      const { createModelDownloader } = await import('node-llama-cpp');
+      const callbacks = new Set<(p: { transferredBytes: number; totalBytes: number }) => void>();
+      const downloader = await createModelDownloader({
+        modelUri: url,
+        dirPath: dir,
+        fileName,
+        onProgress: (status) => {
+          const progress = {
+            transferredBytes: status.downloadedSize,
+            totalBytes: status.totalSize,
+          };
+          callbacks.forEach((cb) => cb(progress));
+        },
+      });
       return {
         download: () => downloader.download(),
         cancel: () => downloader.cancel(),
-        onProgress: (cb) => downloader.onProgress(cb),
+        onProgress: (cb) => {
+          callbacks.add(cb);
+          return () => callbacks.delete(cb);
+        },
       };
     },
   };
@@ -1418,9 +1436,10 @@ const SYSTEM_PROMPT =
 
 const STOP_SEQUENCES = ['<|endoftext|>', '<|corrected_end|>', '\n\n', 'Corrected:', 'Here is'];
 
-// NOTE: sampling params verified against installed node-llama-cpp types (Task 1 step 6).
+// NOTE: sampling params verified against installed node-llama-cpp v3.19 types (Task 1 step 6).
 // Python mapping: temperature=0.7, top_p=0.95, top_k=40, min_p=0.01,
 // frequency_penalty=0.0/presence_penalty=0.0 -> repeatPenalty=1.0, max_tokens=len+20.
+// Stop sequences are passed per-prompt via `customStopTriggers` (no constructor option).
 export class LlamaCorrectionService implements SentenceCorrector {
   private session: LlamaChatSession | null = null;
   private loadError: unknown = null;
@@ -1437,15 +1456,15 @@ export class LlamaCorrectionService implements SentenceCorrector {
       if (!modelPath) throw new Error('No model found');
       const llama = await getLlama(); // auto-detects CUDA / Metal / Vulkan / CPU
       const model = await llama.loadModel({ modelPath, contextSize: 4096 });
+      const context = await model.createContext();
       this.session = new LlamaChatSession({
-        contextSequence: model.createContextSequence(),
+        contextSequence: context.createContextSequence(),
         systemPrompt: SYSTEM_PROMPT,
         temperature: 0.7,
         topK: 40,
         topP: 0.95,
         minP: 0.01,
         repeatPenalty: 1.0,
-        stopGenerationTriggers: STOP_SEQUENCES,
       });
     })();
 
@@ -1462,7 +1481,10 @@ export class LlamaCorrectionService implements SentenceCorrector {
   async correct(sentence: string): Promise<string> {
     try {
       await this.ensureLoaded();
-      const response = await this.session!.prompt(sentence, { maxTokens: sentence.length + 20 });
+      const response = await this.session!.prompt(sentence, {
+        maxTokens: sentence.length + 20,
+        customStopTriggers: STOP_SEQUENCES,
+      });
       return response.trim();
     } catch (error) {
       console.error(`Error correcting sentence '${sentence}':`, error);

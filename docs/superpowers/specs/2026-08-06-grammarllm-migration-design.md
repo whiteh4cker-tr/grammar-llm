@@ -76,7 +76,7 @@ React port of the vanilla UI:
 
 ## Dependencies
 
-Runtime (`dependencies`): `node-llama-cpp` (must be runtime dep so electron-builder bundles it), `zod`, `jsdiff`, `jspdf`.
+Runtime (`dependencies`): `node-llama-cpp` (must be runtime dep so electron-builder bundles it), `zod`, `diff` (jsdiff — published as `diff` on npm; the `jsdiff` package is an unrelated abandoned v1.1.1), `jspdf`.
 Dev: `vitest` only (jsdiff v9 bundles its own types).
 
 Removed/replaced: fastapi, uvicorn, pydantic, huggingface-hub, python-multipart (never used), llama-cpp-python.
