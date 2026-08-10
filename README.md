@@ -2,7 +2,7 @@
 
 A local-first grammar correction and writing quality assessment desktop application built with **Electron, React, TypeScript, and Vite**. It runs a fine-tuned LLM (GRMR-V3-G4B) entirely on your machine — no internet connection, no servers, no API keys, no data leaving your computer.
 
-This is the **`electron` branch** — a full migration of the original [GrammarLLM](https://github.com/whiteh4cker-tr/grammar-llm) (Python FastAPI + vanilla JavaScript web app) into a native desktop app. See [Differences from the python branch](#differences-from-the-python-branch) below.
+This is the **`electron` branch** — a full migration of the original [GrammarLLM](https://github.com/whiteh4cker-tr/grammar-llm/tree/python) (Python FastAPI + vanilla JavaScript web app) into a native desktop app. See [Differences from the python branch](#differences-from-the-python-branch) below.
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-darkred?logo=buy-me-a-coffee)](https://buymeacoffee.com/icecubetr)
 ![GitHub License](https://img.shields.io/github/license/whiteh4cker-tr/grammar-llm?style=flat)
