@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+export const wordFixSchema = z.object({
+  original: z.string(),
+  corrected: z.string(),
+  start: z.number(),
+  end: z.number(),
+});
+
 export const suggestionSchema = z.object({
   original: z.string(),
   corrected: z.string(),
@@ -8,6 +15,7 @@ export const suggestionSchema = z.object({
   end_index: z.number(),
   original_highlighted: z.string(),
   corrected_highlighted: z.string(),
+  wordFixes: z.array(wordFixSchema),
 });
 
 export const correctRequestSchema = z.object({ text: z.string() });

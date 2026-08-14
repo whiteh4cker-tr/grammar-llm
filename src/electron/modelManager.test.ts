@@ -236,3 +236,29 @@ describe('ModelManager context size', () => {
     expect(getSaved().contextSize).toBe(4096);
   });
 });
+
+describe('ModelManager word-level correction setting', () => {
+  it('defaults to enabled when the setting is missing', async () => {
+    const { manager } = makeSelectionManager({ files: [] });
+    expect(await manager.getWordLevelCorrection()).toBe(true);
+  });
+
+  it('loads a persisted disabled value', async () => {
+    const saved = { selected: null, wordLevelCorrection: false };
+    const manager = new ModelManager({
+      modelsDir: '/fake/models',
+      listModels: async () => [],
+      factory: { create: vi.fn() },
+      loadSettings: async () => saved,
+      saveSettings: vi.fn(),
+    });
+    expect(await manager.getWordLevelCorrection()).toBe(false);
+  });
+
+  it('setWordLevelCorrection persists the value', async () => {
+    const { manager, getSaved } = makeSelectionManager({ files: [] });
+    await manager.setWordLevelCorrection(false);
+    expect(await manager.getWordLevelCorrection()).toBe(false);
+    expect(getSaved().wordLevelCorrection).toBe(false);
+  });
+});

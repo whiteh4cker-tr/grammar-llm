@@ -96,3 +96,22 @@ describe('correctText', () => {
     expect(originalHighlighted).not.toContain('error-word">said');
     expect(result.suggestions[0].corrected_highlighted).toContain('<span class="corrected-word">empowering</span>');
   });
+
+  it('attaches word-level fixes to suggestions', async () => {
+    const text = 'She dont like the apples. this is a bad sentence';
+    const corrector = fakeCorrector({ [text]: "She doesn't like the apples. This is a bad sentence" });
+    const result = await correctText(text, corrector);
+    expect(result.suggestions[0].wordFixes).toContainEqual({
+      original: 'dont', corrected: "doesn't", start: 4, end: 8,
+    });
+    expect(result.suggestions[0].wordFixes).toContainEqual({
+      original: 'this', corrected: 'This', start: 26, end: 30,
+    });
+  });
+
+  it('produces no word fixes for quote-only changes', async () => {
+    const text = 'He said \u201Chi\u201D.';
+    const corrector = fakeCorrector({ [text]: 'He said "hi".' });
+    const result = await correctText(text, corrector);
+    expect(result.suggestions).toHaveLength(0);
+  });

@@ -16,10 +16,12 @@ This is the **`electron` branch** — a full migration of the original [GrammarL
 
 - **Real-time grammar & spelling correction** — sentence-level error detection using the GRMR-V3-G4B LLM (quantized Q4_K_M or Q8_0)
 - **AI-powered suggestions** — per-sentence suggestion cards with word-level highlighted diffs (red = error, green = correction)
+- **Word-level corrections in the editor** — after a check, misspelled words are highlighted in light red directly in your text (insertions the model suggests appear as green `+` markers); hovering shows the corrected word in a popup right under it, and one click replaces, **inserts** (e.g., a missing comma) or **deletes** (e.g., a repeated word) — no need to use the suggestions panel. Applying a fix automatically **re-checks just that sentence** (the engine corrects sentences independently, so the rest of your text is left untouched) and keeps all other suggestions valid
 - **Apply suggestions individually** — one click replaces the error span in your text; applied suggestions are tracked and filtered
 - **Writing quality score (0–100)** — computed from the error-to-word ratio, updated after every check
 - **PDF report generation** — WCAG 2.0 AA–compliant, downloadable report with the score, all suggestions, and highlighted original/corrected sentences (jsPDF)
-- **Model manager** — on first run (or via the **Model** button in the app), manage your models:
+- **Settings hub** — gear button (top-right) opens Settings: **General** (light/dark theme, word-level corrections toggle — enabled by default, persisted) and **LLM** (context size, model management)
+- **Model manager** — under **Settings → LLM**, manage your models:
   - **GRMR-V3-G4B-Q4_K_M** — *Recommended*: faster, smaller download
   - **GRMR-V3-G4B-Q8_0** — *Highest quality*: slower, larger download (~4 GB)
   - **Custom GGUF URL** — paste a direct link to any .gguf model (e.g., from Hugging Face)
@@ -27,7 +29,7 @@ This is the **`electron` branch** — a full migration of the original [GrammarL
 - **Multi-backend GPU support** — llama.cpp via [node-llama-cpp](https://github.com/withcatai/node-llama-cpp) with **automatic detection**: CUDA (NVIDIA), Metal (Apple Silicon), Vulkan (AMD/Intel/NVIDIA), CPU fallback — zero configuration
 - **Fully offline & private** — model runs locally; nothing is ever sent to a server
 - **Secure by design** — sandboxed renderer, `contextIsolation`, typed IPC bridge via `contextBridge` (no raw `ipcRenderer` in the UI)
-- **Dark/light theme** — dark mode default, persisted across sessions
+- **Dark/light theme** — dark mode default, persisted across sessions; switch anytime in Settings. The model download screen matches the chosen theme (light `#F0F0F0` background in light mode)
 - **Keyboard shortcut** — `Ctrl+Enter` (or `Cmd+Enter`) to check grammar
 - **Smart editing detection** — editing your text automatically clears stale suggestions
 
@@ -42,34 +44,9 @@ This is the **`electron` branch** — a full migration of the original [GrammarL
 | Validation | zod (IPC payloads) |
 | Diff highlighting | jsdiff (`diff`) |
 | PDF reports | jsPDF |
-| Tests | vitest (60 unit tests) |
+| Tests | vitest (135 unit tests) |
 | Linting | oxlint |
 | Packaging | electron-builder (dmg / AppImage / portable / msi) |
-
-## Project Structure
-
-```
-src/
-├── electron/            # Main process (Node)
-│   ├── main.ts          # Window creation, service wiring
-│   ├── ipc.ts           # ipcMain handlers (no REST API — pure IPC)
-│   ├── schemas.ts       # zod validation schemas
-│   ├── preload.cjs      # contextBridge → window.api (CommonJS, sandbox-compatible)
-│   ├── ipc-types.ts     # typed IPC contract shared with the renderer
-│   ├── modelManager.ts  # model detection / download / cancel / progress
-│   ├── llamaService.ts  # node-llama-cpp chat session (fresh context per sentence)
-│   └── core/            # Pure, unit-tested port of the original engine
-│       ├── sentences.ts     # sentence splitting (abbreviations, decimals, quotes)
-│       ├── clean.ts         # model-output cleaning (prefixes, repetition, punctuation)
-│       ├── diff.ts          # word-level diff → error-word/corrected-word spans
-│       ├── reconstruct.ts   # whitespace-preserving text reconstruction
-│       ├── apply.ts         # single + bulk suggestion application (overlap-safe)
-│       └── correction.ts    # orchestrator: split → correct → validate → suggest
-└── ui/                  # Renderer (React)
-    ├── App.tsx          # model-status gate → ModelGate or GrammarApp
-    └── components/      # ModelGate, GrammarApp, SuggestionsList, ScoreBadge,
-                         # ReportButton, pdf.ts (report builder), ThemeToggle
-```
 
 ## Getting Started
 
@@ -105,11 +82,12 @@ On first launch you'll see the model download screen. Pick a model (~2–4 GB, r
 
 ## How It Works
 
-1. **Model gate** — on startup the app checks for a `.gguf` model; if none exists, the download screen is shown. Once a model is loaded, the **Model** button (top-right) reopens it in *manage mode*: switch between installed models, delete models, or download more — including a **custom GGUF URL**.
+1. **Model gate** — on startup the app checks for a `.gguf` model; if none exists, the download screen is shown. Once a model is loaded, the **Settings** gear (top-right) → **LLM** reopens model management: switch between installed models, delete models, or download more — including a **custom GGUF URL**.
 2. **Correction pipeline** (per check): split text into sentences (abbreviation/decimal-aware) → for each sentence, prompt the LLM with a fixed system prompt and a **fresh chat history** (each sentence corrected independently) → clean the model output (strip prefixes, template tags, repeated segments) → validate (reject quote-only changes, >2× length explosions, >1.5× suggestion bloat) → diff words → reconstruct the full text preserving original spacing.
-3. **Suggestions** — only meaningful corrections become cards; hovering a card highlights the sentence in your editor; Apply replaces the span.
-4. **Score** — `round(100 × (1 − errorWords / totalWords))`.
-5. **Report** — jsPDF builds the A4 report with WCAG-compliant colors and word-wrap.
+3. **Word-level fixes** — the same token diff that drives the suggestion cards also produces per-word error spans with absolute positions: replacements, **insertions** (zero-width spans, shown as green `+` markers) and **deletions** (highlighted words with a Delete popup). When word-level corrections are enabled (default), the editor renders a highlight layer behind the text. Hovering a highlighted word shows the fix beneath it; clicking applies the change and triggers a **debounced re-check of only that sentence** — the result is merged back into the suggestion list, with the positions of later suggestions shifted to match the edited text.
+4. **Suggestions** — only meaningful corrections become cards; hovering a card highlights the sentence in your editor; Apply replaces the span.
+5. **Score** — `round(100 × (1 − errorWords / totalWords))`.
+6. **Report** — jsPDF builds the A4 report with WCAG-compliant colors and word-wrap.
 
 ## Testing
 
@@ -117,7 +95,7 @@ On first launch you'll see the model download screen. Pick a model (~2–4 GB, r
 npm run test
 ```
 
-60 unit tests cover the core engine (sentence splitting edge cases, cleaning rules, diff highlighting, reconstruction fidelity, apply/overlap logic), the model manager lifecycle (download/cancel/error states, selection persistence, delete), and IPC schema validation. Tests never download a model — the LLM layer is exercised manually.
+135 unit tests cover the core engine (sentence splitting edge cases, cleaning rules, diff highlighting, word-fix extraction — including insertions, deletions and combined word+punct runs, reconstruction fidelity, apply/overlap logic), the model manager lifecycle (download/cancel/error states, selection persistence, settings persistence, delete), IPC schema validation, the overlay helpers, and the sentence re-check merge logic. Tests never download a model — the LLM layer is exercised manually.
 
 ## Packaging
 
@@ -128,7 +106,7 @@ npm run dist:win    # or dist:mac / dist:linux (build on the target OS)
 - Output lands in `dist/`
 - node-llama-cpp native binaries are unpacked from the asar archive (`asarUnpack`) — required for the packaged app to run
 - App icon: `desktopIcon.png` (512×512)
-- Artifacts are named after `productName` (e.g. `GrammarLLM 0.0.0.exe`)
+- Artifacts are named after `productName` (e.g. `GrammarLLM 1.4.0.exe`)
 - **Portable builds store models in a `models` folder next to the exe** (via `PORTABLE_EXECUTABLE_DIR`); installed builds use the user-data directory. Keep the exe in a writable folder (not `Program Files`).
 - Installs are unsigned by default (`CSC_IDENTITY_AUTO_DISCOVERY=false`); set `CSC_LINK`/`CSC_KEY_PASSWORD` when you have a signing certificate
 
@@ -148,7 +126,7 @@ npm run dist:win    # or dist:mac / dist:linux (build on the target OS)
 | **PDF report** | jsPDF via CDN script | jsPDF npm package (same WCAG layout, unit-tested builder) |
 | **Privacy** | Client-server (data crosses the network) | **Fully offline** — model runs locally, no data leaves the machine |
 | **Packaging** | Docker / `uvicorn` | electron-builder installers: dmg, AppImage, portable exe, msi |
-| **Testing** | None | 60 vitest unit tests (engine, model manager, schemas) |
+| **Testing** | None | 135 vitest unit tests (engine, model manager, schemas, overlay helpers, re-check merge) |
 | **Chrome extension** | Included in repo | Out of scope (separate artifact) |
 
 ### What was preserved

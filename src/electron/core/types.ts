@@ -14,6 +14,14 @@ export interface Suggestion {
   end_index: number;
   original_highlighted: string;
   corrected_highlighted: string;
+  wordFixes: WordFix[];
+}
+
+export interface WordFix {
+  original: string;   // misspelled word as it appears in the text
+  corrected: string;  // replacement word
+  start: number;      // absolute offset in the full input text
+  end: number;        // absolute offset (exclusive)
 }
 
 export interface CorrectionResponse {

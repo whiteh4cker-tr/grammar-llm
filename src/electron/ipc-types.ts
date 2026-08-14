@@ -39,6 +39,8 @@ export interface IpcApi {
   deleteModel(args: { fileName: string }): Promise<ModelStatus>;
   getSettings(): Promise<{ contextSize: number }>;
   setContextSize(args: { contextSize: number }): Promise<{ contextSize: number }>;
+  getWordLevelCorrection(): Promise<{ enabled: boolean }>;
+  setWordLevelCorrection(args: { enabled: boolean }): Promise<{ enabled: boolean }>;
   downloadModel(args: ModelDownloadRequest): Promise<void>;
   cancelDownload(): Promise<void>;
   onDownloadProgress(cb: (progress: DownloadProgress) => void): () => void;

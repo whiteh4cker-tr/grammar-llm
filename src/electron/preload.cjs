@@ -10,6 +10,8 @@ contextBridge.exposeInMainWorld('api', {
   deleteModel: (args) => ipcRenderer.invoke('model:delete', args),
   getSettings: () => ipcRenderer.invoke('model:get-settings'),
   setContextSize: (args) => ipcRenderer.invoke('model:set-context-size', args),
+  getWordLevelCorrection: () => ipcRenderer.invoke('settings:get-word-level'),
+  setWordLevelCorrection: (args) => ipcRenderer.invoke('settings:set-word-level', args),
   downloadModel: (args) => ipcRenderer.invoke('model:download', args),
   cancelDownload: () => ipcRenderer.invoke('model:cancel-download'),
   onDownloadProgress: (cb) => {

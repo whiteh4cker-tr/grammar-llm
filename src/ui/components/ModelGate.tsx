@@ -33,28 +33,21 @@ interface Props {
   status: ModelStatus;
   mode?: 'required' | 'manage';
   onClose?: () => void;
+  embedded?: boolean;
 }
 
-export function ModelGate({ status, mode = 'required', onClose }: Props) {
+export function ModelGate({ status, mode = 'required', onClose, embedded = false }: Props) {
   const [selected, setSelected] = useState(0);
   const [customUrl, setCustomUrl] = useState('');
   const [installed, setInstalled] = useState<string[]>([]);
   const [progress, setProgress] = useState<DownloadProgress | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [contextSize, setContextSize] = useState<number | null>(null);
-  const [contextDraft, setContextDraft] = useState('');
-  const [contextSaved, setContextSaved] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     api.listModels().then((models) => {
       if (!cancelled) setInstalled(models);
-    }).catch(() => { /* ignore */ });
-    api.getSettings().then((settings) => {
-      if (cancelled) return;
-      setContextSize(settings.contextSize);
-      setContextDraft(String(settings.contextSize));
     }).catch(() => { /* ignore */ });
     return () => { cancelled = true; };
   }, [mode]);
@@ -136,32 +129,16 @@ export function ModelGate({ status, mode = 'required', onClose }: Props) {
     setProgress(null);
   }
 
-  async function handleSaveContextSize() {
-    const parsed = Number(contextDraft);
-    if (!Number.isInteger(parsed) || parsed < 256 || parsed > 131072) {
-      setError('Context size must be an integer between 256 and 131072.');
-      return;
-    }
-    setError(null);
-    setContextSaved(false);
-    try {
-      const result = await api.setContextSize({ contextSize: parsed });
-      setContextSize(result.contextSize);
-      setContextDraft(String(result.contextSize));
-      setContextSaved(true);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }
-
   return (
-    <div className="model-gate">
-      <div className="model-gate-head">
-        <h1>GrammarLLM</h1>
-        {mode === 'manage' && onClose && (
-          <button className="gate-close" onClick={onClose}>✕</button>
-        )}
-      </div>
+    <div className={`model-gate ${embedded ? 'embedded' : ''}`}>
+      {!embedded && (
+        <div className="model-gate-head">
+          <h1>GrammarLLM</h1>
+          {mode === 'manage' && onClose && (
+            <button className="gate-close" onClick={onClose}>✕</button>
+          )}
+        </div>
+      )}
       <p className="model-gate-subtitle">
         {mode === 'manage'
           ? 'Manage your models — switch, download, or delete.'
@@ -234,34 +211,6 @@ export function ModelGate({ status, mode = 'required', onClose }: Props) {
 
       {status.state === 'error' && <p className="model-gate-error">Model failed to load: {status.modelName}</p>}
       {error && <p className="model-gate-error">{error}</p>}
-
-      {mode === 'manage' && contextSize !== null && (
-        <div className="context-size-row">
-          <div className="context-size-label">
-            <strong>Context size (tokens)</strong>
-            <span>Applies after the model reloads. Larger context = more memory.</span>
-          </div>
-          <div className="context-size-controls">
-            <input
-              className="context-size-input"
-              type="number"
-              min={256}
-              max={131072}
-              step={256}
-              value={contextDraft}
-              onChange={(e) => {
-                setContextDraft(e.target.value);
-                setContextSaved(false);
-              }}
-              disabled={downloading}
-            />
-            <button className="context-save-btn" onClick={() => void handleSaveContextSize()} disabled={downloading}>
-              Apply
-            </button>
-            {contextSaved && <span className="context-saved-note">Saved — reloading…</span>}
-          </div>
-        </div>
-      )}
 
       {progress ? (
         <div className="download-area">

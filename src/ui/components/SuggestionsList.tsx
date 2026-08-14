@@ -1,4 +1,5 @@
 import type { Suggestion } from '../../electron/core/types';
+import { escapeHtml } from '../escapeHtml';
 
 interface Props {
   suggestions: Suggestion[];
@@ -59,11 +60,3 @@ export function SuggestionsList({ suggestions, applied, loading, error, onApply,
   );
 }
 
-export function escapeHtml(unsafe: string): string {
-  return unsafe
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}

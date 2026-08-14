@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { correctRequestSchema, applyRequestSchema, downloadRequestSchema, contextSizeSchema } from './schemas';
+import { correctRequestSchema, applyRequestSchema, downloadRequestSchema, contextSizeSchema, wordFixSchema } from './schemas';
 
 describe('IPC schemas', () => {
   it('accepts a valid correct request', () => {
@@ -18,6 +18,7 @@ describe('IPC schemas', () => {
     const suggestion = {
       original: 'a', corrected: 'b', sentence: 'Sentence 1',
       start_index: 0, end_index: 1, original_highlighted: '', corrected_highlighted: '',
+      wordFixes: [],
     };
     const parsed = applyRequestSchema.parse({
       originalText: 'a', suggestionIndex: 0, suggestions: [suggestion],
@@ -39,5 +40,16 @@ describe('contextSizeSchema', () => {
 
   it('rejects non-integers', () => {
     expect(() => contextSizeSchema.parse(4096.5)).toThrow();
+  });
+});
+
+describe('wordFixSchema', () => {
+  it('accepts a valid word fix', () => {
+    expect(wordFixSchema.parse({ original: 'dont', corrected: "doesn't", start: 4, end: 8 }))
+      .toEqual({ original: 'dont', corrected: "doesn't", start: 4, end: 8 });
+  });
+
+  it('rejects a missing corrected field', () => {
+    expect(() => wordFixSchema.parse({ original: 'dont', start: 4, end: 8 })).toThrow();
   });
 });

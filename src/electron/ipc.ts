@@ -24,6 +24,16 @@ export function registerIpcHandlers(modelManager: ModelManager, corrector: Llama
     return { contextSize };
   });
 
+  ipcMain.handle('settings:get-word-level', () =>
+    modelManager.getWordLevelCorrection().then((enabled) => ({ enabled })),
+  );
+
+  ipcMain.handle('settings:set-word-level', async (_event, raw) => {
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(raw);
+    await modelManager.setWordLevelCorrection(enabled);
+    return { enabled };
+  });
+
   ipcMain.handle('model:select', async (_event, raw) => {
     const { fileName } = modelFileSchema.parse(raw);
     await modelManager.select(fileName);

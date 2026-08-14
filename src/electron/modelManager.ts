@@ -14,6 +14,7 @@ export interface DownloaderFactory {
 export interface ModelSettings {
   selected?: string | null;
   contextSize?: number;
+  wordLevelCorrection?: boolean;
 }
 
 export interface ModelManagerOptions {
@@ -46,6 +47,7 @@ export class ModelManager {
   private cancelRequested = false;
   private selectedModel: string | null = null;
   private contextSize = DEFAULT_CONTEXT_SIZE;
+  private wordLevelCorrection = true;
   private settingsLoaded: Promise<void> | null = null;
 
   constructor(options: ModelManagerOptions) {
@@ -94,6 +96,9 @@ export class ModelManager {
         if (typeof settings.contextSize === 'number' && Number.isInteger(settings.contextSize)) {
           this.contextSize = settings.contextSize;
         }
+        if (typeof settings.wordLevelCorrection === 'boolean') {
+          this.wordLevelCorrection = settings.wordLevelCorrection;
+        }
       }).catch(() => {
         this.selectedModel = null;
       });
@@ -122,6 +127,23 @@ export class ModelManager {
     this.contextSize = contextSize;
     await this.saveSettings({ selected: this.selectedModel, contextSize }).catch((error) => {
       console.error('Failed to persist context size:', error);
+    });
+  }
+
+  async getWordLevelCorrection(): Promise<boolean> {
+    await this.ensureSettingsLoaded();
+    return this.wordLevelCorrection;
+  }
+
+  async setWordLevelCorrection(enabled: boolean): Promise<void> {
+    await this.ensureSettingsLoaded();
+    this.wordLevelCorrection = enabled;
+    await this.saveSettings({
+      selected: this.selectedModel,
+      contextSize: this.contextSize,
+      wordLevelCorrection: enabled,
+    }).catch((error) => {
+      console.error('Failed to persist word-level correction setting:', error);
     });
   }
 

@@ -1,6 +1,6 @@
 import { splitIntoSentences } from './sentences.js';
 import { cleanCorrectedText, isOnlyQuoteChange } from './clean.js';
-import { highlightWordDifferences } from './diff.js';
+import { highlightWordDifferences, extractWordFixes } from './diff.js';
 import { reconstructTextFromSentences } from './reconstruct.js';
 import type { CorrectionResponse, SentenceCorrector } from './types.js';
 
@@ -64,6 +64,7 @@ export async function correctText(text: string, corrector: SentenceCorrector): P
         end_index: sent.end,
         original_highlighted: diff.originalHighlighted,
         corrected_highlighted: diff.correctedHighlighted,
+        wordFixes: extractWordFixes(sentence, corrected, sent.start),
       });
     }
   }
