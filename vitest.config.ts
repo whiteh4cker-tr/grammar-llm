@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
   },
   // Vite's default extension order puts .js BEFORE .ts, so relative imports
   // would resolve to stale compiled dist-electron/*.js over fresh .ts source.

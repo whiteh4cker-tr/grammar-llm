@@ -101,7 +101,9 @@ export function buildPdfDocument(suggestions: Suggestion[], score: number | null
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(12);
       doc.setTextColor(...COLOR_TITLE);
-      doc.text(`${i + 1}. ${s.sentence}`, marginL, y);
+      // Whitespace is collapsed so a stray newline cannot make jsPDF break the
+      // line itself — this heading reserves exactly one line of `y`.
+      doc.text(`${i + 1}. ${s.sentence.replace(/\s+/g, ' ')}`, marginL, y);
       y += 7;
 
       y = renderHighlightedRow(
@@ -163,27 +165,47 @@ function renderHighlightedRow(
   doc.setTextColor(...colorLabel);
   doc.text(label, marginL + 2, y);
 
-  const pieces: Array<{ text: string; highlighted: boolean; width: number }> = [];
+  // Break the content into positioned pieces. Hard line breaks are counted here
+  // and replayed by the layout loop below: handing a raw newline to doc.text()
+  // makes jsPDF advance the baseline on its own (a `T*` in the content stream),
+  // so the text after it lands on top of the following row while this function
+  // still reports a single line of height.
+  const pieces: Array<{ text: string; highlighted: boolean; width: number; lineBreaks: number }> = [];
   tokens.forEach((tok) => {
-    tok.text.split(/( )/).forEach((part) => {
-      if (part.length > 0) {
-        doc.setFont('helvetica', tok.highlighted ? 'bold' : 'normal');
-        pieces.push({ text: part, highlighted: tok.highlighted, width: doc.getTextWidth(part) });
-      }
+    const normalized = tok.text.replace(/\r\n?/g, '\n').replace(/[\t\u00a0]/g, ' ');
+    normalized.split(/(\s+)/).forEach((part) => {
+      if (part.length === 0) return;
+      const lineBreaks = (part.match(/\n/g) || []).length;
+      const text = lineBreaks > 0 ? part.replace(/\s/g, '') : part;
+      doc.setFont('helvetica', tok.highlighted ? 'bold' : 'normal');
+      pieces.push({
+        text,
+        highlighted: tok.highlighted,
+        lineBreaks,
+        width: text.length > 0 ? doc.getTextWidth(text) : 0,
+      });
     });
   });
 
   let curX = contentX;
   let lineY = y;
 
+  const advanceLine = () => {
+    lineY += lineH;
+    curX = contentX;
+    if (lineY > doc.internal.pageSize.getHeight() - 15) {
+      doc.addPage();
+      lineY = 20;
+    }
+  };
+
   pieces.forEach((p) => {
+    if (p.lineBreaks > 0) {
+      for (let i = 0; i < p.lineBreaks; i++) advanceLine();
+      if (p.width === 0) return;
+    }
     if (curX + p.width > contentX + contentW && p.text.trim() !== '') {
-      lineY += lineH;
-      curX = contentX;
-      if (lineY > doc.internal.pageSize.getHeight() - 15) {
-        doc.addPage();
-        lineY = 20;
-      }
+      advanceLine();
     }
     if (p.highlighted) {
       doc.setFillColor(...bgColor);

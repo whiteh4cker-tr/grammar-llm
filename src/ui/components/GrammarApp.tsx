@@ -1,13 +1,57 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import Alert from '@mui/material/Alert';
+import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
+import IconButton from '@mui/material/IconButton';
+import Paper from '@mui/material/Paper';
+import Snackbar from '@mui/material/Snackbar';
+import Typography from '@mui/material/Typography';
+import ClearIcon from '@mui/icons-material/Clear';
+import SettingsIcon from '@mui/icons-material/Settings';
+import SpellcheckIcon from '@mui/icons-material/Spellcheck';
 import { api } from '../api';
 import type { CorrectionResponse, Suggestion, WordFix } from '../../electron/core/types';
 import { SuggestionsList } from './SuggestionsList';
 import { ScoreBadge } from './ScoreBadge';
 import { ReportButton } from './ReportButton';
+import { EditorMirror, EditorTextarea, FixHighlight, FixInsertHighlight } from './editorStyles';
+import { SUCCESS_TEXT } from '../theme';
 import { buildSegments, normalizeFixes } from '../wordOverlay';
 import { applyWordFixToText, mergeSentenceRecheck, rebaseRecheckedSuggestions, shiftApplied } from '../recheck';
 
 const RECHECK_DELAY_MS = 600;
+
+/**
+ * How long a fix popup survives after the pointer leaves the highlighted word
+ * (or the popup itself). Long enough to cross the few pixels between the word
+ * and the popup and click the fix button; short enough to feel responsive.
+ */
+const HOVER_GRACE_MS = 500;
+
+/** How long a toast stays up. */
+const TOAST_MS = 3000;
+
+/**
+ * Usable rect of a mirror fix span.
+ *
+ * An insertion marker is an empty inline box, so its own rect can be
+ * zero-sized — which would leave it unhittable and the popup without an anchor.
+ * A collapsed Range around the span reports the caret-sized rect at the same
+ * spot, so fall back to that.
+ */
+function fixSpanRect(span: HTMLElement): DOMRect {
+  const rect = span.getBoundingClientRect();
+  if (rect.height > 0) return rect;
+  const range = span.ownerDocument.createRange();
+  range.setStartBefore(span);
+  range.setEndAfter(span);
+  // Layout-less hosts (jsdom) implement Element rects as zeros and no Range
+  // metrics at all; there is nothing better to fall back to there.
+  if (typeof range.getBoundingClientRect !== 'function') return rect;
+  const rangeRect = range.getBoundingClientRect();
+  return rangeRect.height > 0 ? rangeRect : rect;
+}
 
 export default function GrammarApp({
   onOpenSettings,
@@ -34,6 +78,7 @@ export default function GrammarApp({
   const spanRectRef = useRef<DOMRect | null>(null);
   const lastCaretRef = useRef(0);
   const recheckTimerRef = useRef<number | null>(null);
+  const hoverGraceRef = useRef<number | null>(null);
   const requestIdRef = useRef(0);
 
   const wordFixes = useMemo(
@@ -109,7 +154,7 @@ export default function GrammarApp({
       spanRectRef.current = null;
       return;
     }
-    const spanRect = span.getBoundingClientRect();
+    const spanRect = fixSpanRect(span);
     spanRectRef.current = spanRect;
     const containerRect = container.getBoundingClientRect();
     setPopupPos({
@@ -139,8 +184,46 @@ export default function GrammarApp({
   useEffect(() => {
     return () => {
       if (recheckTimerRef.current !== null) clearTimeout(recheckTimerRef.current);
+      if (hoverGraceRef.current !== null) clearTimeout(hoverGraceRef.current);
     };
   }, []);
+
+  // Timed here rather than left to Snackbar's `autoHideDuration`, which arms
+  // its own timer in the enter transition's `onEntered` — a transition that may
+  // never run (reduced motion, hidden window), leaving the toast on screen.
+  useEffect(() => {
+    if (!toast) return;
+    const id = setTimeout(() => setToast(null), TOAST_MS);
+    return () => clearTimeout(id);
+  }, [toast]);
+
+  function cancelHoverGrace() {
+    if (hoverGraceRef.current !== null) {
+      clearTimeout(hoverGraceRef.current);
+      hoverGraceRef.current = null;
+    }
+  }
+
+  function clearHoverNow() {
+    cancelHoverGrace();
+    setHoverFix(null);
+    setPopupPos(null);
+  }
+
+  /**
+   * Hide the popup after a short grace period instead of the moment the
+   * pointer leaves the highlighted word, so the user can travel down to the
+   * popup and press its fix button. Re-entering a fix span or the popup itself
+   * cancels it via `cancelHoverGrace()`.
+   */
+  function scheduleHoverClear() {
+    if (hoverGraceRef.current !== null) return;
+    hoverGraceRef.current = window.setTimeout(() => {
+      hoverGraceRef.current = null;
+      setHoverFix(null);
+      setPopupPos(null);
+    }, HOVER_GRACE_MS);
+  }
 
   // Re-check only the sentence that contained the applied word fix. The
   // engine corrects sentences independently, so untouched sentences would
@@ -203,7 +286,7 @@ export default function GrammarApp({
 
   function handleTextChange(next: string) {
     setText(next);
-    setHoverFix(null);
+    clearHoverNow();
     // Smart-edit invalidation (port of checkForTextChanges): a small length
     // change is likely an applied suggestion; anything else clears suggestions.
     const isSuggestionApply =
@@ -241,8 +324,7 @@ export default function GrammarApp({
       fix,
       currentCorrections.suggestions,
     );
-    setHoverFix(null);
-    setPopupPos(null);
+    clearHoverNow();
     setText(replaced);
     if (parentIndex === -1) {
       // No parent sentence — nothing to re-check; clear highlights.
@@ -277,27 +359,38 @@ export default function GrammarApp({
     // Mouse button held (text drag/selection): never pop a fix popup over
     // the selection — it would interrupt dragging to the end of the text.
     if (e.buttons !== 0) return;
-    // Pointer over the popup: keep it visible instead of recomputing.
-    if (popupRef.current && popupRef.current.contains(e.target as Node)) return;
+    // Pointer over the popup: keep it visible instead of recomputing, and drop
+    // any pending grace-period dismissal (the user is on their way to click).
+    if (popupRef.current && popupRef.current.contains(e.target as Node)) {
+      cancelHoverGrace();
+      return;
+    }
     const mirror = mirrorRef.current;
     if (!mirror) return;
     // Hit-test the mouse point against the highlight spans' rects. The mirror
     // shares the textarea's metrics, so this matches the visible words.
     let found: WordFix | null = null;
     for (const span of mirror.querySelectorAll<HTMLElement>('.wfix')) {
-      const rect = span.getBoundingClientRect();
-      if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+      const rect = fixSpanRect(span);
+      // An insertion point is a hairline, so give it a few pixels of target.
+      const padX = rect.width < 2 ? 4 : 0;
+      if (
+        e.clientX >= rect.left - padX &&
+        e.clientX <= rect.right + padX &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      ) {
         const start = Number(span.dataset.fixStart);
         found = wordFixes.find((f) => f.start === start) ?? null;
         break;
       }
     }
-    setHoverFix(found);
-  }
-
-  function clearHover() {
-    setHoverFix(null);
-    setPopupPos(null);
+    if (found) {
+      cancelHoverGrace();
+      setHoverFix(found);
+      return;
+    }
+    if (hoverFix) scheduleHoverClear();
   }
 
   function handleScroll(e: React.UIEvent<HTMLTextAreaElement>) {
@@ -306,7 +399,8 @@ export default function GrammarApp({
       mirror.scrollTop = e.currentTarget.scrollTop;
       mirror.scrollLeft = e.currentTarget.scrollLeft;
     }
-    setHoverFix(null);
+    // Positions go stale as soon as the text moves — no grace period here.
+    clearHoverNow();
   }
 
   const handleSuggestionHover = useCallback((suggestion: Suggestion) => {
@@ -327,116 +421,205 @@ export default function GrammarApp({
     }
   }, []);
 
+  function handleClearAll() {
+    setText('');
+    setCorrections(null);
+    setApplied(new Set());
+    setScore(null);
+    setError(null);
+    clearHoverNow();
+    if (recheckTimerRef.current !== null) clearTimeout(recheckTimerRef.current);
+  }
+
   return (
-    <div className="app-shell">
-      <button className="settings-btn" onClick={onOpenSettings} title="Settings">⚙️</button>
+    <Box sx={{ p: { xs: 0.75, md: 1.25 } }}>
+      <IconButton
+        onClick={onOpenSettings}
+        title="Settings"
+        sx={{
+          position: 'fixed',
+          top: 1.25,
+          right: 1.25,
+          zIndex: 1200,
+          color: '#fff',
+          bgcolor: 'rgba(255, 255, 255, 0.12)',
+          border: '1px solid rgba(255, 255, 255, 0.25)',
+          backdropFilter: 'blur(10px)',
+          '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.25)' },
+        }}
+      >
+        <SettingsIcon />
+      </IconButton>
 
-      <header className="app-header">
-        <h1>GrammarLLM</h1>
-        <p>Automated grammar correction and writing quality assessment</p>
-      </header>
+      <Box sx={{ textAlign: 'center', mb: 2.5, px: 1, color: '#fff' }}>
+        <Typography variant="h4" sx={{ textShadow: '2px 2px 4px rgba(0, 0, 0, 0.3)' }}>
+          GrammarLLM
+        </Typography>
+        <Typography variant="body1" sx={{ opacity: 0.9 }}>
+          Automated grammar correction and writing quality assessment
+        </Typography>
+      </Box>
 
-      <main className="app-main">
-        <section className="editor-section">
-          <div className="editor-header">
-            <h2>Your Text</h2>
-            <div className="editor-actions">
-              {rechecking && <span className="rechecking-note">Re-checking…</span>}
-              <button className="check-btn" onClick={() => void handleCheck()} disabled={loading}>
+      <Box
+        sx={{
+          display: 'grid',
+          gap: 1.875,
+          gridTemplateColumns: { xs: '1fr', md: '2fr 1fr' },
+          gridTemplateRows: { xs: 'minmax(0, 2fr) minmax(0, 1fr)', md: 'minmax(0, 1fr)' },
+          height: { xs: 'calc(100vh - 100px)', md: 'calc(100vh - 120px)' },
+          maxHeight: '80vh',
+        }}
+      >
+        <Paper elevation={6} sx={{ p: { xs: 1.875, md: 2.5 }, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, minWidth: 0, borderRadius: 1.25 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 1.25,
+              mb: 1.875,
+              flexShrink: 0,
+            }}
+          >
+            <Typography variant="h6">Your Text</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+              {rechecking && (
+                <Typography
+                  variant="caption"
+                  sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, fontStyle: 'italic', color: 'text.secondary' }}
+                >
+                  <CircularProgress size={12} />
+                  Re-checking…
+                </Typography>
+              )}
+              <Button
+                variant="contained"
+                startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <SpellcheckIcon />}
+                onClick={() => void handleCheck()}
+                disabled={loading}
+              >
                 {loading ? 'Checking…' : 'Check Grammar'}
-              </button>
-              <button
-                className="clear-btn"
-                onClick={() => {
-                  setText('');
-                  setCorrections(null);
-                  setApplied(new Set());
-                  setScore(null);
-                  setError(null);
-                  setHoverFix(null);
-                  if (recheckTimerRef.current !== null) clearTimeout(recheckTimerRef.current);
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<ClearIcon />}
+                onClick={handleClearAll}
+                sx={{
+                  borderColor: 'divider',
+                  color: 'text.primary',
+                  '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
                 }}
               >
                 Clear
-              </button>
-            </div>
-          </div>
-          <div
-            className="editor-wrap"
+              </Button>
+            </Box>
+          </Box>
+
+          <Box
+            sx={{ position: 'relative', flex: 1, display: 'flex', minHeight: 0 }}
             ref={editorWrapRef}
             onMouseMove={handleMouseMove}
-            onMouseLeave={clearHover}
+            onMouseLeave={scheduleHoverClear}
             onMouseDown={(e) => {
               // Pressing the popup's own button must not dismiss it before
               // the click event lands.
               if (popupRef.current && popupRef.current.contains(e.target as Node)) return;
-              clearHover();
+              clearHoverNow();
             }}
           >
             {overlayActive && (
-              <div className="editor-mirror" ref={mirrorRef}>
+              <EditorMirror ref={mirrorRef}>
                 {buildSegments(text, wordFixes).map((segment, index) => {
                   if (!segment.isFix || !segment.fix) {
                     return <span key={index}>{segment.text}</span>;
                   }
                   if (segment.fix.original === '') {
-                    // Insertion: show the text that would be inserted.
+                    // Insertion: an empty marker only. Rendering the inserted
+                    // word here would push the rest of the line away from the
+                    // caret, which the textarea positions on the real text.
                     return (
-                      <span key={index} className="wfix wfix-insert" data-fix-start={segment.fix.start}>
-                        {segment.fix.corrected}
-                      </span>
+                      <FixInsertHighlight key={index} className="wfix wfix-insert" data-fix-start={segment.fix.start} />
                     );
                   }
                   return (
-                    <span key={index} className="wfix" data-fix-start={segment.fix.start}>
+                    <FixHighlight key={index} className="wfix" data-fix-start={segment.fix.start}>
                       {segment.text}
-                    </span>
+                    </FixHighlight>
                   );
                 })}
-              </div>
+                {/* A trailing newline is a painted line in a textarea but is
+                    folded away by `pre-wrap`; without it the mirror is a line
+                    shorter than the text and the caret sits on the wrong line
+                    at the very end. */}
+                {text.endsWith('\n') ? '\n' : ''}
+              </EditorMirror>
             )}
-            <textarea
+            <EditorTextarea
               ref={textareaRef}
-              className={overlayActive ? 'editor-input overlay-mode' : 'editor-input'}
+              $overlay={overlayActive}
               value={text}
               placeholder="Type or paste your text here, then press Ctrl+Enter or click Check Grammar"
               onChange={(e) => handleTextChange(e.target.value)}
               onKeyUp={(e) => { lastCaretRef.current = e.currentTarget.selectionStart; }}
               onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setHoverFix(null);
-                  setPopupPos(null);
-                }
+                if (e.key === 'Escape') clearHoverNow();
               }}
               onClick={(e) => { lastCaretRef.current = e.currentTarget.selectionStart; }}
               onScroll={handleScroll}
             />
-            {hoverFix && popupPos && (
-              <div
+            {overlayActive && hoverFix && popupPos && (
+              <Paper
                 ref={popupRef}
-                className="fix-popup"
-                style={{ left: popupPos.left, top: popupPos.top }}
+                elevation={8}
+                onMouseEnter={cancelHoverGrace}
+                onMouseLeave={scheduleHoverClear}
+                sx={{
+                  position: 'absolute',
+                  zIndex: 20,
+                  left: popupPos.left,
+                  top: popupPos.top,
+                  p: 0.5,
+                  display: 'flex',
+                }}
               >
-                <button className="fix-popup-btn" onClick={() => handleWordFixApply(hoverFix)}>
+                {/* Text button: MUI would paint `success.main`, a fill colour
+                    that is too dark to read as small text on the popup. */}
+                <Button
+                  size="small"
+                  color="success"
+                  sx={{ color: ({ palette }) => SUCCESS_TEXT[palette.mode] }}
+                  onClick={() => handleWordFixApply(hoverFix)}
+                >
                   {hoverFix.original === ''
                     ? `+ ${hoverFix.corrected}`
                     : hoverFix.corrected === ''
                       ? 'Delete'
                       : hoverFix.corrected}
-                </button>
-              </div>
+                </Button>
+              </Paper>
             )}
-          </div>
-        </section>
+          </Box>
+        </Paper>
 
-        <section className="suggestions-section">
-          <div className="suggestions-header">
-            <h2>Suggestions</h2>
-            <div className="writing-quality-right">
+        <Paper elevation={6} sx={{ p: { xs: 1.875, md: 2.5 }, display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, minWidth: 0, borderRadius: 1.25 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 1.25,
+              mb: 1.875,
+              flexShrink: 0,
+            }}
+          >
+            <Typography variant="h6">Suggestions</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
               {score !== null && <ScoreBadge score={score} />}
               <ReportButton suggestions={corrections?.suggestions ?? []} score={score} />
-            </div>
-          </div>
+            </Box>
+          </Box>
           <SuggestionsList
             suggestions={corrections?.suggestions ?? []}
             applied={applied}
@@ -446,11 +629,26 @@ export default function GrammarApp({
             onHover={handleSuggestionHover}
             onLeave={handleSuggestionLeave}
           />
-        </section>
-      </main>
+        </Paper>
+      </Box>
 
-      {toast && <Toast toast={toast} onDone={() => setToast(null)} />}
-    </div>
+      <Snackbar
+        key={toast ? toast.message : 'toast'}
+        open={toast !== null}
+        autoHideDuration={TOAST_MS}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity={toast?.isError ? 'error' : 'success'}
+          variant="filled"
+          onClose={() => setToast(null)}
+          sx={{ alignItems: 'center' }}
+        >
+          {toast?.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }
 
@@ -484,20 +682,4 @@ export function findBestOccurrence(
   return matches.reduce((best, occ) =>
     Math.abs(occ[0] - approxIndex) < Math.abs(best[0] - approxIndex) ? occ : best,
   );
-}
-
-function Toast({
-  toast,
-  onDone,
-}: {
-  toast: { message: string; isError?: boolean };
-  onDone: () => void;
-}) {
-  // Key the timer on the toast object identity, NOT onDone: onDone is a fresh
-  // closure every GrammarApp render, which would reset the timer forever.
-  useEffect(() => {
-    const timer = setTimeout(onDone, 3000);
-    return () => clearTimeout(timer);
-  }, [toast]); // eslint-disable-line react-hooks/exhaustive-deps -- onDone identity is unstable by design
-  return <div className={`toast ${toast.isError ? 'toast-error' : ''}`}>{toast.message}</div>;
 }

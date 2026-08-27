@@ -24,6 +24,14 @@ describe('reconstructTextFromSentences', () => {
     expect(result).toBe('  Indented fixed. Next fixed.');
   });
 
+  it('restores the space between sentences that had none', () => {
+    const original = 'One.Two.';
+    const data = splitIntoSentences(original);
+    expect(data.map((s) => s.text)).toEqual(['One.', 'Two.']);
+    const result = reconstructTextFromSentences(original, data, ['One!', 'Two?']);
+    expect(result).toBe('One! Two?');
+  });
+
   it('returns original text when lengths mismatch', () => {
     const original = 'One. Two.';
     const data = splitIntoSentences(original);
